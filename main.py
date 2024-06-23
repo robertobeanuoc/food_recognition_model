@@ -25,7 +25,7 @@ def upload():
         return "Error: No file uploaded."
 
     # Convert file to numpy array
-    file_bytes = np.fromstring(file.read(), np.uint8)
+    file_bytes = np.frombuffer(file.read(), np.uint8)
     img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
 
 
