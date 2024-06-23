@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-import openai
-import os 
 import base64
 from openai import OpenAI
 
@@ -33,7 +31,3 @@ def classify_image(image_file:str):
     max_tokens=300,
     )
     print(response.to_dict()['choices'][0]['message']['content'].replace("json", "").replace("```", ""))
-
-
-classify_image("/Users/rbean/temp/IMG_0617.png")
-classify_image("/Users/rbean/temp/IMG_0618.png")
