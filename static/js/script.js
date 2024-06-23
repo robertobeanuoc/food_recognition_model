@@ -14,7 +14,7 @@ navigator.mediaDevices.getUserMedia({ video: true })
 
 snap.addEventListener('click', () => {
     const context = canvas.getContext('2d');
-    context.drawImage(video, 0, 0, 640, 480);
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     canvas.toBlob(blob => {
         const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
