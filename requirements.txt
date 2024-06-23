@@ -1,5 +1,5 @@
 flask>1.0
-requests>=2.0
+requests>2.0
 opencv-python>4.0
 numpy>1.20
-opeanai>=1.0
+opeanai>1.0
