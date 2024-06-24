@@ -2,8 +2,7 @@
 import base64
 from openai import OpenAI
 from utils import app_logger
-
-
+import os
 
 
 def encode_image(image_file:str)->bytes:
@@ -11,7 +10,8 @@ def encode_image(image_file:str)->bytes:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
 def classify_image(image_file:str):
-    client = OpenAI()
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    client = OpenAI(api_key=openai_api_key)
     base_64_image:bytes = encode_image(image_file)
     message_info: str = "Create message for open ai"
     app_logger.info(f"Message info: {message_info}")
