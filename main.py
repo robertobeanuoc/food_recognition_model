@@ -61,7 +61,8 @@ def upload():
 
 @app.route('/view_photo/<filename>')
 def view_photo(filename):
-    return render_template('view_photo.html', filename=filename)
+    app_logger.info(f"Viewing photo {filename}")
+    return render_template('view_photo.html', filename=filename )
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5010, ssl_context='adhoc')
