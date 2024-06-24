@@ -40,7 +40,9 @@ def classify_image(image_file:str):
     )
     message_response:str = response.to_dict()['choices'][0]['message']['content'].replace("json", "").replace("```", "")
     app_logger.info(f"Message response: {message_response}")
-    output_json: dict = json.loads(re.search(r'\[(.|\s)*\]', message_response).string)
+    message_json: str = re.search(r'\[(.|\s)*\]', message_response).string
+    app_logger.info(f"Message json: {message_json}")
+    output_json: dict = json.loads(message_json)
     return output_json
     
     

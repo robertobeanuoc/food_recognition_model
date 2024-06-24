@@ -6,6 +6,7 @@ from datetime import datetime
 from food_clasification import classify_image
 from utils import app_logger
 from db import insert_food_type
+import ssl
 
 app = Flask(__name__)
 
