@@ -9,6 +9,11 @@
     <h1>Your Photo</h1>
     <img src="{{ url_for('static', filename='uploads/' ~ filename) }}" alt="Photo">
     <br>
+    <pre>
+        {% with open('static/uploads/output.json') as file %}
+            {{ file.read() }}
+        {% endwith %}
+    </pre>
     <a href="{{ url_for('index') }}">Take another photo</a>
 </body>
 </html>

@@ -11,7 +11,8 @@ def encode_image(image_file:str)->bytes:
     with open(image_file, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
-def classify_image(image_file:str):
+def classify_image(image_file:str) -> dict:
+    output_json: dict = {}
     openai_api_key = os.getenv("OPENAI_API_KEY")
     client = OpenAI(api_key=openai_api_key)
     base_64_image:bytes = encode_image(image_file)
@@ -40,11 +41,17 @@ def classify_image(image_file:str):
     )
     message_response:str = response.to_dict()['choices'][0]['message']['content'].replace("json", "").replace("```", "")
     app_logger.info(f"Message response: {message_response}")
-    message_json:str = re.findall(r'\[[\s\S]*?\]',message_response)[0]
-    app_logger.info(f"Message json: {message_json}")
-    with open("output.json", "w") as output_file:
-        output_file.write(message_json)
-    output_json: dict = json.loads(message_json)
+    json_files:list[str] = re.findall(r'\[[\s\S]*?\]',message_response)
+    if json_files.count == 0 or json_files is None:
+        app_logger.error("No json file found")
+    else:        
+        try:
+            message_json:str = json_files[0]
+            app_logger.info(f"Message json: {message_json}")
+            output_json = json.loads(message_json)
+        except Exception as e:
+            output_json = {}
+            app_logger.error(f"Error: {e}")
     return output_json
     
     

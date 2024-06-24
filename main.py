@@ -6,7 +6,7 @@ from datetime import datetime
 from food_clasification import classify_image
 from utils import app_logger
 from db import insert_food_type
-import ssl
+import json
 
 app = Flask(__name__)
 
@@ -52,15 +52,16 @@ def upload():
     food_types:list[dict] = classify_image(filepath)
     for food_type in food_types:
         insert_food_type(food_type=food_type['food_type'], glycemic_index=food_type['glycemic_index'], weight_grams=food_type['weight_grams'])
+    with open('static/uploads/output.json', 'w') as f:
+        f.write(json.dumps(food_types))
     
-
 
     return redirect(url_for('view_photo', filename=filepath))
 
 
 @app.route('/view_photo/<filename>')
 def view_photo(filename):
-    return render_template('view_photo.html', filename=filename)
+    return render_template('static/view_photo.html', filename=filename)
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5010, ssl_context='adhoc')
