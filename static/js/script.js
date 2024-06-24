@@ -4,16 +4,24 @@ const snap = document.getElementById('snap');
 const fileInput = document.getElementById('file');
 const uploadForm = document.getElementById('upload-form');
 
-navigator.mediaDevices.getUserMedia({ video: true })
-    .then(stream => {
-        video.srcObject = stream;
-    })
-    .catch(err => {
-        console.error("Error accessing camera: ", err);
-    });
 
 snap.addEventListener('click', () => {
+    
     const context = canvas.getContext('2d');
+
+    try {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                console.error("Error accessing camera: ", err);
+            });
+    }
+    catch(e){
+        console.log(e);
+    }
+
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     canvas.toBlob(blob => {
