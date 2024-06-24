@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import os
 from datetime import datetime
-from food_clasification import classify_image
+from food_classification import classify_image
 from utils import app_logger
 from db import insert_food_type
 import json
@@ -56,12 +56,12 @@ def upload():
         f.write(json.dumps(food_types))
     
 
-    return redirect(url_for('view_photo', filename=filepath))
+    return redirect(url_for('view_photo', filename=filename))
 
 
 @app.route('/view_photo/<filename>')
 def view_photo(filename):
-    return render_template('static/view_photo.html', filename=filename)
+    return render_template('view_photo.html', filename=filename)
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5010, ssl_context='adhoc')
