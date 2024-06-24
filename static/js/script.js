@@ -41,4 +41,3 @@ snap.addEventListener('click', () => {
     }, 'image/jpeg');
 });
 
-// TODO : Add event listener for file input change
