@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 from food_clasification import classify_image
 from utils import app_logger
+from db import insert_food_type
 
 app = Flask(__name__)
 
@@ -47,7 +48,11 @@ def upload():
     cv2.imwrite(filepath, img)
     app_logger.info(f"Image saved at {filepath}")
 
-    food_types:dict = classify_image(filepath)
+    food_types:list[dict] = classify_image(filepath)
+    for food_type in food_types:
+        insert_food_type(food_type=food_type['food_type'], glycemic_index=food_type['glycemic_index'], weight_grams=food_type['weight_grams'])
+    
+
 
     return redirect(url_for('view_photo', filename=filepath))
 
