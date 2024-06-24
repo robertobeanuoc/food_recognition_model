@@ -47,7 +47,7 @@ def upload():
     cv2.imwrite(filepath, img)
     app_logger.info(f"Image saved at {filepath}")
 
-    classify_image(filepath)
+    food_types:dict = classify_image(filepath)
 
     return redirect(url_for('view_photo', filename=filepath))
 
