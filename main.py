@@ -39,7 +39,8 @@ def upload():
 
     classify_image(filepath)
 
-    return redirect(url_for('view_photo', filename=filename))
+    return redirect(url_for('view_photo', filename=filepath))
+
 
 @app.route('/view_photo/<filename>')
 def view_photo(filename):
