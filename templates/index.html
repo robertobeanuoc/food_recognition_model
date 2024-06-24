@@ -9,7 +9,7 @@
     <h1>Take a Photo</h1>
     <div>
         <div>
-            <video id="video" height="90%" width="auto" autoplay></video>
+            <video id="video" height="90%" width="auto" autoplay playsinline></video>
             <canvas id="canvas" height="90%" width="auto" style="display: none;"></canvas>
             <form id="upload-form" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
                 <input type="hidden" name="file" id="file">
