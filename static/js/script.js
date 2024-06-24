@@ -10,9 +10,11 @@ snap.addEventListener('click', () => {
     const context = canvas.getContext('2d');
 
     try {
+        console.log('Trying to access camera');
         navigator.mediaDevices.getUserMedia({ video: true })
             .then(stream => {
                 video.srcObject = stream;
+                console.log('Camera accessed successfully');
             })
             .catch(err => {
                 console.error("Error accessing camera: ", err);
