@@ -4,6 +4,7 @@ import numpy as np
 import os
 from datetime import datetime
 from food_clasification import classify_image
+from utils import app_logger
 
 app = Flask(__name__)
 
@@ -19,12 +20,18 @@ def index():
 def upload():
     # Check if the post request has the file part
     if 'photo' not in request.files:
-        return "Error: No file part in the request."
+        error_message: str = "Error: No file part in the request."
+        app_logger.error(error_message)
+        return error_message
     file = request.files['photo']
     if not file:
-        return "Error: No file uploaded."
+        error_message: str = "Error: No file uploaded."
+        app_logger.error(error_message)
+        return error_message
 
     # Convert file to numpy array
+    message_info: str = "Convert file to numpy array"
+    app_logger.info(message_info)
     file_bytes = np.frombuffer(file.read(), np.uint8)
     img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
 
@@ -33,9 +40,12 @@ def upload():
     for file in os.listdir(UPLOAD_FOLDER):
         os.remove(os.path.join(UPLOAD_FOLDER, file))
 
+    # Save the image
+    app_logger.info("Saving the image ..")
     filename = datetime.now().strftime("%Y%m%d%H%M%S") + '.jpg'
     filepath = os.path.join(UPLOAD_FOLDER, filename)
     cv2.imwrite(filepath, img)
+    app_logger.info(f"Image saved at {filepath}")
 
     classify_image(filepath)
 

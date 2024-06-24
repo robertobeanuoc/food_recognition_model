@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 import base64
 from openai import OpenAI
+from utils import app_logger
+
+
+
 
 def encode_image(image_file:str)->bytes:
     with open(image_file, "rb") as image_file:
@@ -9,6 +13,8 @@ def encode_image(image_file:str)->bytes:
 def classify_image(image_file:str):
     client = OpenAI()
     base_64_image:bytes = encode_image(image_file)
+    message_info: str = "Create message for open ai"
+    app_logger.info(f"Message info: {message_info}")
     response = client.chat.completions.create(
     model="gpt-4o",
     messages=[
@@ -30,4 +36,6 @@ def classify_image(image_file:str):
     ],
     max_tokens=300,
     )
-    print(response.to_dict()['choices'][0]['message']['content'].replace("json", "").replace("```", ""))
+    message_response:str = response.to_dict()['choices'][0]['message']['content'].replace("json", "").replace("```", "")
+    app_logger.info(f"Message response: {message_response}")
+    
