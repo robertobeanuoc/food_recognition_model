@@ -24,7 +24,9 @@ snap.addEventListener('click', () => {
             method: 'POST',
             body: formData
         })
-        .then(response => response.text())
+        .then(response => {
+            return response.url;
+        })  
         .then(data => {
             console.log(data);
             window.location.href = data;
