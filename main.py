@@ -31,6 +31,7 @@ def upload():
         app_logger.error(error_message)
         return error_message
 
+
     # Convert file to numpy array
     message_info: str = "Convert file to numpy array"
     app_logger.info(message_info)
