@@ -4,8 +4,7 @@ const snap = document.getElementById('snap');
 const fileInput = document.getElementById('file');
 const uploadForm = document.getElementById('upload-form');
 
-navigator.mediaDevices.getUserMedia({
-    facingMode: "environment" })
+navigator.mediaDevices.getUserMedia({ video: {facingMode: "environment"} })
     .then(stream => {
         video.srcObject = stream;
     })
