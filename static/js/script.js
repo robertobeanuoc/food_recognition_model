@@ -15,6 +15,7 @@ navigator.mediaDevices.getUserMedia({ video: {facingMode: "environment"} })
 snap.addEventListener('click', () => {
     const context = canvas.getContext('2d');
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    document.getElementById("snap").innerHTML = "Processing...";
 
     canvas.toBlob(blob => {
         const formData = new FormData();
