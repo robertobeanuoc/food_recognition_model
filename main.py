@@ -1,3 +1,5 @@
+
+import shutil
 from flask import Flask, session ,render_template, request, redirect, url_for
 import cv2
 import numpy as np
@@ -42,6 +44,7 @@ def upload():
     # Remove all files under uploads folder
     for file in os.listdir(UPLOAD_FOLDER):
         os.remove(os.path.join(UPLOAD_FOLDER, file))
+
     app_logger.info("Saving the image ..")
     uuid_img: str = str(uuid.uuid4())
     filename_image:str = f"{uuid_img}.jpg"
@@ -49,14 +52,26 @@ def upload():
     cv2.imwrite(filepath, img)
     app_logger.info(f"Image saved at {filepath}")
 
-    food_types:list[dict] = classify_image(filepath)
+    app_logger.info("Saving image in photo folder ..")
 
+
+    app_logger.info("Classifying the image ..")
+    food_types:list[dict] = classify_image(filepath)
     for food_type in food_types:
-        insert_food_type(food_type=food_type['food_type'], glycemic_index=food_type['glycemic_index'], weight_grams=food_type['weight_grams'])
+        insert_food_type(file_uid=uuid_img,food_type=food_type['food_type'], glycemic_index=food_type['glycemic_index'], weight_grams=food_type['weight_grams'])
+
     
     file_name_json:str = os.path.join(UPLOAD_FOLDER,f"{uuid_img}.json")
     with open(file_name_json, 'w') as f:
         f.write(json.dumps(food_types))
+
+    app_logger.info("Copying the folder content to another folder ..")
+    try:
+        shutil.copytree(UPLOAD_FOLDER, os.getenv("PHOTO_FOLDER"), dirs_exist_ok=True)
+    except Exception as e:
+        pass
+    app_logger.info("Folder content copied successfully.")
+
     
     session['food_types'] = json.dumps(food_types)
     

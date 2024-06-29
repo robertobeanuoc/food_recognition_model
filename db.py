@@ -3,7 +3,7 @@ import datetime
 import os
 
 
-def insert_food_type(food_type:str, glycemic_index:int, weight_grams:int, created_at:datetime.datetime=datetime.datetime.now()):
+def insert_food_type(file_uid:str, food_type:str, glycemic_index:int, weight_grams:int, created_at:datetime.datetime=datetime.datetime.now()):
 
     cnx: mysql.connector.MySQLConnection = mysql.connector.connect(
         host=os.getenv("DB_HOST"),
@@ -16,7 +16,7 @@ def insert_food_type(food_type:str, glycemic_index:int, weight_grams:int, create
     cursor = cnx.cursor()
 
     # Define the SQL query to insert a record into the food_table
-    query:str = f"INSERT INTO food_register (food_type, glycemic_index, weight_grams, created_at) VALUES ('{food_type}', {glycemic_index}, {weight_grams}, '{created_at.strftime('%Y-%m-%d %H:%M:%S')}')"
+    query:str = f"INSERT INTO food_register (file_uid, food_type, glycemic_index, weight_grams, created_at) VALUES ('{file_uid}','{food_type}', {glycemic_index}, {weight_grams}, '{created_at.strftime('%Y-%m-%d %H:%M:%S')}')"
 
     
     # Execute the query with the provided values
