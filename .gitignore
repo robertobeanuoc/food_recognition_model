@@ -164,3 +164,4 @@ cython_debug/
 **.vscode/**launch.json
 **.vscode/**settings.json
 **/uploads/***.jpg
+**/uploads/***.json
