@@ -82,8 +82,8 @@ def save_files_to_storage(file_image:str, file_json:str):
     app_logger.info("Copying the folder content to another folder ..")
     try:
         upload_folder: str = os.getenv("PHOTO_FOLDER")
-        shutil.copy(file_image, upload_folder)
-        shutil.copy(file_json, upload_folder)
+        shutil.copy(file_image, os.path.join(upload_folder, os.path.basename(file_image)))
+        shutil.copy(file_json, os.path.join(upload_folder, os.path.basename(file_json)))
 
         app_logger.info("Folder content copied successfully.")
     except Exception as e:
