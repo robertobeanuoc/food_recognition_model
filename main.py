@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, session ,render_template, request, redirect, url_for
 import cv2
 import numpy as np
 import os
@@ -7,8 +7,10 @@ from food_classification import classify_image
 from utils import app_logger
 from db import insert_food_type
 import json
+import uuid
 
 app = Flask(__name__,static_folder='static', template_folder='templates')
+app.secret_key = os.getenv('SECRET_KEY')
 
 UPLOAD_FOLDER = 'static/uploads/'
 if not os.path.exists(UPLOAD_FOLDER):
@@ -41,8 +43,9 @@ def upload():
     for file in os.listdir(UPLOAD_FOLDER):
         os.remove(os.path.join(UPLOAD_FOLDER, file))
     app_logger.info("Saving the image ..")
-    filename = datetime.now().strftime("%Y%m%d%H%M%S") + '.jpg'
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    uuid_img: str = str(uuid.uuid4())
+    filename_image:str = f"{uuid_img}.jpg"
+    filepath:str = os.path.join(UPLOAD_FOLDER, filename_image)
     cv2.imwrite(filepath, img)
     app_logger.info(f"Image saved at {filepath}")
 
@@ -50,18 +53,22 @@ def upload():
 
     for food_type in food_types:
         insert_food_type(food_type=food_type['food_type'], glycemic_index=food_type['glycemic_index'], weight_grams=food_type['weight_grams'])
-    with open('static/uploads/output.json', 'w') as f:
+    
+    file_name_json:str = os.path.join(UPLOAD_FOLDER,f"{uuid_img}.json")
+    with open(file_name_json, 'w') as f:
         f.write(json.dumps(food_types))
     
+    session['food_types'] = json.dumps(food_types)
+    
 
-    return redirect(url_for('view_photo', filename=filename))
+    return redirect(url_for('view_photo', uuid_img=uuid_img,food_types=food_types))
 
 
-@app.route('/view_photo/<filename>')
-def view_photo(filename):    
+@app.route('/view_photo/<uuid_img>')
+def view_photo(uuid_img):    
 
-    app_logger.info(f"Viewing photo {filename}")
-    return render_template('view_photo.html', filename=filename)
+    app_logger.info(f"Viewing photo {uuid_img}")
+    return render_template('view_photo.html', uuid_img=uuid_img, food_types=session['food_types'])
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5010, ssl_context='adhoc')

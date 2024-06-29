@@ -7,8 +7,11 @@
 </head>
 <body>
     <h1>Your Photo</h1>
-    <img src="{{ url_for('static', filename='uploads/' ~ filename) }}" alt="Photo">
+    <img src="{{ url_for('static', filename='uploads/' ~ uuid_img) }}.jpg" alt="Photo">
     <br>
+    <pre>
+        {{ food_types }}
+    </pre>
     <a href="{{ url_for('index') }}">Take another photo</a>
 </body>
 </html>
