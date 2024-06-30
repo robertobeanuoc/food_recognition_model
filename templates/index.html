@@ -10,23 +10,22 @@
     <h1>Take a food photo</h1>
     <div>
         <div>
-            <video id="video" width="auto" height="auto" autoplay playsinline></video>
-            <canvas id="canvas" width="auto" height="auto" style="display: none;"></canvas>
+            <video id="video" width="auto" autoplay playsinline></video>
+            <canvas id="canvas" width="auto" style="display: none;"></canvas>
             <form id="upload-form" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
                 <input type="hidden" name="file" id="file">
             </form>    
         </div>
         <br/>
         <br/>
-        <div style="display: flex; justify-content: left;">
-            <button id="snap" style="width: 25%;" onclick="changeButtonText()">Snap Photo</button>
-        
-   
-        
+        <div style="display: flex; justify-content: center;">
+            <button id="snap" onclick="changeButtonText()">Snap Photo</button>        
         </div>
         </div>
         </div>
         <script src="{{ url_for('static', filename='js/script.js') }}"></script>    
+        </div>
+        </div>
     </div>
 </body>
 </html>
