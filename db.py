@@ -20,6 +20,7 @@ def insert_food_type(file_uid:str, food_type:str, glycemic_index:int, weight_gra
 
     # Define the SQL query to insert a record into the food_table
     query:str = f"INSERT INTO food_register (file_uid, food_type, glycemic_index, weight_grams, created_at) VALUES ('{file_uid}','{food_type}', {glycemic_index}, {weight_grams}, '{created_at.strftime('%Y-%m-%d %H:%M:%S')}')"
+    app_logger.info(f"Query: {query}")
 
     
     # Execute the query with the provided values
