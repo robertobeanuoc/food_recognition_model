@@ -6,18 +6,28 @@ const uploadForm = document.getElementById('upload-form');
 
 let localStream;
 
-navigator.mediaDevices.getUserMedia({ video: {facingMode: "environment"} , width: {min:720}, height: { min: 1280} })
+navigator.mediaDevices.getUserMedia({ video: {facingMode: "environment"} , width: {min:2048}, height: { min: 3642} })
     .then(stream => {
         localStream = stream;
         video.srcObject = localStream;
+        // video.videoWidth = 2048;
+        // video.videoHeight = 1536;
     })
     .catch(err => {
         console.error("Error accessing camera: ", err);
     });
 
 snap.addEventListener('click', () => {
+
     const context = canvas.getContext('2d');
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    console.log('Taking canvas  width: ' + canvas.width + ' height:' + canvas.height);
+    console.log('Taking video width: ' + video.videoWidt + ' height:' + video.videoHeigh);
+
+    canvas.width = video.videoWidth; // Set canvas width to video's width
+    canvas.height = video.videoHeight; // Set canvas height to video's height
+
+
+    context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
     document.getElementById("snap").innerHTML = "Processing...";
 
     canvas.toBlob(blob => {
@@ -79,7 +89,8 @@ function adjustCanvasSize() {
     // Optional: Adjust canvas style to center it, if desired
     canvas.style.marginLeft = (window.innerWidth - canvas.width) / 2 + 'px';
     canvas.style.marginTop = (window.innerHeight - canvas.height) / 2 + 'px';
-    video.srcObject.width = canvas.width * 0.95;
-    video.srcObject.height = canvas.height * 0.95;
+    console.log(video);
+    // video.srcObject.width = canvas.width * 0.95;
+    // video.srcObject.height = canvas.height * 0.95;
 
 }

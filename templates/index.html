@@ -36,12 +36,12 @@
 <body>
     <h1>Take a food photo</h1>
     <div>
-        <video id="video" width="auto" autoplay playsinline></video>
-        <canvas id="canvas" width="auto" style="display: none;"></canvas>
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas" style="display: none;"></canvas>
         <form id="upload-form" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
             <input type="hidden" name="file" id="file">
         </form>    
-        <button id="snap" onclick="changeButtonText()">Snap Photo</button>        
+        <button id="snap">Snap Photo</button>        
     </div>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
