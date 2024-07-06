@@ -4,28 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Identify carbohidrat foods</title> 
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
 
+        video, canvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        #snap {
+            font-size: 1em;
+            padding: 10px;
+            margin-top: 20px;
+        }
+
+        @media (min-width: 768px) {
+            #snap {
+                font-size: 1.2em;
+                padding: 15px;
+                margin-top: 20px;
+            }
+        }
+    </style>
 </head>
 <body>
     <h1>Take a food photo</h1>
     <div>
-        <div>
-            <video id="video" width="auto" autoplay playsinline></video>
-            <canvas id="canvas" width="auto" style="display: none;"></canvas>
-            <form id="upload-form" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
-                <input type="hidden" name="file" id="file">
-            </form>    
-        </div>
-        <br/>
-        <br/>
-        <div style="display: flex; justify-content: center;">
-            <button id="snap" onclick="changeButtonText()">Snap Photo</button>        
-        </div>
-        </div>
-        </div>
-        <script src="{{ url_for('static', filename='js/script.js') }}"></script>    
-        </div>
-        </div>
+        <video id="video" width="auto" autoplay playsinline></video>
+        <canvas id="canvas" width="auto" style="display: none;"></canvas>
+        <form id="upload-form" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+            <input type="hidden" name="file" id="file">
+        </form>    
+        <button id="snap" onclick="changeButtonText()">Snap Photo</button>        
     </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
