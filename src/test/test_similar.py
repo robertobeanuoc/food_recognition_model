@@ -1,8 +1,9 @@
-from db import get_food_types
+from similar_food import find_similar_food
 
 
 def test_get_food_types():
-    get_food_types()
+    find_similar_food(food_type="Paella")
+    
 
 
 test_get_food_types()

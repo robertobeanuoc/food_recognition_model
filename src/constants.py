@@ -1,0 +1,1 @@
+SIMILAR_JINJA2_TEMPLATE: str = 'src/jinja2_templates/similar_files.jinja'
