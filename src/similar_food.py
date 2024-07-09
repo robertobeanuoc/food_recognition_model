@@ -18,6 +18,13 @@ def render_template(food_type: str, food_types: dict) -> str:
 def find_similar_food(food_type:str) -> dict:
     food_types: dict = get_food_types()
 
+        
+    csv_string = "food_type,food_type_es\n"
+    
+    for food in food_types:
+        if food['glycemic_index'] and food['glycemic_index'] >0:
+            csv_string += f"{food['food_type']},{food['food_type_es']}\n"
+
     openai_api_key = os.getenv("OPENAI_API_KEY")
     client = OpenAI(api_key=openai_api_key)
     response = client.chat.completions.create(
@@ -28,7 +35,7 @@ def find_similar_food(food_type:str) -> dict:
         "content": [
             {
             "type": "text",
-            "text": f"{render_template(food_type=food_type, food_types=food_types)}",
+            "text": f"{render_template(food_type=food_type, food_types=csv_string)}",
             },
         ],
         }

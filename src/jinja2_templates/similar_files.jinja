@@ -1,2 +1,8 @@
-Retrieve the glycemic index for {{food_type}} and indicate the source of the data. Prioritize medical publication for the most accurate information. Return all identified papers in a JSON format, including the paper name and its corresponding glycemic index, along with the average glycemic index for all papers found.
-Add also the publication year.
+Retrieve a food with similar composition to {{food_type}} included only in this CSV file:
+
+{{food_types}}
+
+Return a JSON file with a field for the original food named original_food_type and another field named food_type, and also the spanish translation in a field named food_type_es.
+
+Only use foods included in the previous JSON file. List only one food.
+
