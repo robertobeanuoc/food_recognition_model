@@ -1,1 +1,1 @@
-SIMILAR_JINJA2_TEMPLATE: str = 'src/jinja2_templates/similar_files.jinja'
+SIMILAR_JINJA2_TEMPLATE: str = 'src/food_recognition/jinja2_templates/similar_files.jinja'

@@ -11,14 +11,14 @@ from food_recognition.db import insert_food_type
 import json
 import uuid
 
-app = Flask(__name__,static_folder='static', template_folder='templates')
+app = Flask(__name__,static_folder='food_recognition/static', template_folder='food_recognition/templates')
 app.secret_key = os.getenv('SECRET_KEY')
 
-UPLOAD_FOLDER = '/static/uploads/'
+UPLOAD_FOLDER = 'src/food_recognition/static/uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-@app.route('/webserver/')
+@app.route('/')
 def index():
     return render_template('index.html')
 
