@@ -1,7 +1,7 @@
 import mysql.connector
 import datetime 
 import os
-from utils import app_logger
+from food_recognition.utils import app_logger
 
 
 def insert_food_type(file_uid:str, food_type:str, glycemic_index:int, weight_grams:int, created_at:datetime.datetime=datetime.datetime.now()):

@@ -5,20 +5,20 @@ import cv2
 import numpy as np
 import os
 from datetime import datetime
-from food_classification import classify_image
-from utils import app_logger
-from db import insert_food_type
+from food_recognition.food_classification import classify_image
+from food_recognition.utils import app_logger
+from food_recognition.db import insert_food_type
 import json
 import uuid
 
 app = Flask(__name__,static_folder='static', template_folder='templates')
 app.secret_key = os.getenv('SECRET_KEY')
 
-UPLOAD_FOLDER = 'static/uploads/'
+UPLOAD_FOLDER = '/static/uploads/'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-@app.route('/')
+@app.route('/webserver/')
 def index():
     return render_template('index.html')
 

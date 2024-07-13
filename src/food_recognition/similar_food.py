@@ -1,10 +1,10 @@
 
 from openai import OpenAI
-from utils import app_logger
+from food_recognition.utils import app_logger
 import os
-from db import get_food_types
+from utils.db import get_food_types
 from jinja2 import Template
-from constants import SIMILAR_JINJA2_TEMPLATE
+from lib.constants import SIMILAR_JINJA2_TEMPLATE
 
 
 def render_template(food_type: str, food_types: dict) -> str:

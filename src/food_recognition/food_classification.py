@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import base64
 from openai import OpenAI
-from utils import app_logger
+from food_recognition.utils import app_logger
 import os
 import re
 import json
