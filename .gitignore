@@ -172,3 +172,5 @@ cython_debug/
 .Rproj.user
 *.RData*
 *.Rhistory*
+
+**flask_session**

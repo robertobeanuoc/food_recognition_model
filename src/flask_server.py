@@ -7,13 +7,20 @@ import os
 from datetime import datetime
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
-from food_recognition.db import insert_food_type
-from food_recognition.similar_food import add_similar_food_info_to_food, find_similar_food
+from food_recognition.db import get_glycemic_index, insert_food_type, insert_food_type_update
+from food_recognition.similar_food import add_similar_food_info_to_food
 import json
 import uuid
 
+from flask_session import Session
+
 app = Flask(__name__,static_folder='food_recognition/static', template_folder='food_recognition/templates')
 app.secret_key = os.getenv('SECRET_KEY')
+
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SECRET_KEY"] = app.secret_key
+
+Session(app)
 
 UPLOAD_FOLDER = 'src/food_recognition/static/uploads'
 if not os.path.exists(UPLOAD_FOLDER):
@@ -67,7 +74,7 @@ def upload():
     session['food_types'] = add_similar_food_info_to_food(food_types=food_types)
     
 
-    return redirect(url_for('view_photo', uuid_img=uuid_img,food_types=food_types))
+    return redirect(url_for('view_photo', uuid_img=uuid_img))
 
 def save_image(img)->str:
     app_logger.info("Saving the image ..")
@@ -95,7 +102,21 @@ def save_files_to_storage(file_image:str, file_json:str):
 def view_photo(uuid_img):    
 
     app_logger.info(f"Viewing photo {uuid_img}")
-    return render_template('view_photo.html', uuid_img=uuid_img, app_logger=app_logger)
+    return render_template('view_photo.html', uuid_img=uuid_img, app_logger=app_logger, food_types=session['food_types'])
+
+
+@app.route('/update_values', methods=['POST'])
+def update_values():
+    app_logger.info("Updating values ..")
+    num_food_types:int = int(request.form['num_food_types'])
+    uuid_img:str = request.form['uuid_img']
+    for i in range(1, num_food_types+1):
+        food_type = request.form[f'food_type_{i}']
+        glycemic_index =  get_glycemic_index(food_type=food_type)
+        weight_grams = request.form[f'weight_grams_{i}']
+        insert_food_type_update(file_uid=uuid_img, food_type=food_type, glycemic_index=glycemic_index, weight_grams=weight_grams)
+
+    return redirect(url_for('view_photo', uuid_img=uuid_img))
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5010, ssl_context='adhoc')

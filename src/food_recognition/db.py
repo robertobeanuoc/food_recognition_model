@@ -31,6 +31,34 @@ def insert_food_type(file_uid:str, food_type:str, glycemic_index:int, weight_gra
     cnx.close()
     app_logger.info("Connection closed")
 
+def insert_food_type_update(file_uid:str, food_type:str, glycemic_index:int, weight_grams:int, created_at:datetime.datetime=datetime.datetime.now()):
+
+    cnx:mysql.connector.MySQLConnection = _connect_to_db()
+    
+    app_logger.info("Connected to the database")
+
+    # Create a cursor object to execute SQL queries
+    cursor = cnx.cursor()
+
+    # Define the SQL query to insert a record into the food_table
+    query:str = f"INSERT INTO food_register_update (file_uid, food_type, glycemic_index, weight_grams, created_at) VALUES ('{file_uid}','{food_type}', {glycemic_index}, {weight_grams}, '{created_at.strftime('%Y-%m-%d %H:%M:%S')}')"
+    app_logger.info(f"Query: {query}")
+
+    
+    # Execute the query with the provided values
+    cursor.execute(query)
+    app_logger.info("Record inserted successfully")
+
+    # Commit the changes to the database
+    cnx.commit()
+    app_logger.info("Changes committed")
+
+    # Close the cursor and the connection
+    cursor.close()
+    cnx.close()
+    app_logger.info("Connection closed")
+
+
 def _connect_to_db()-> mysql.connector.MySQLConnection:
     cnx: mysql.connector.MySQLConnection = mysql.connector.connect(
         host=os.getenv("DB_HOST"),
@@ -49,7 +77,7 @@ def get_food_types()-> list[dict]:
     cursor = cnx.cursor()
 
     # Define the SQL query to retrieve all records from the food_table
-    query:str = "SELECT food_type, food_type_es, glycemic_index FROM glycemic_index"
+    query:str = "SELECT food_type, food_type_es, glycemic_index FROM glycemic_index order by food_type"
     app_logger.info(f"Query: {query}")
 
     # Execute the query
@@ -149,7 +177,7 @@ def get_glycemic_index(food_type: str) -> int:
     return ret_glycemic_index
 
 
-def get_food_types(food_type: str="")->list[str]:
+def get_food_types_list(food_type: str="")->list[str]:
     cnx: mysql.connector.MySQLConnection = _connect_to_db()
     app_logger.info("Connected to the database")
 
@@ -157,7 +185,7 @@ def get_food_types(food_type: str="")->list[str]:
     cursor = cnx.cursor()
 
     # Define the SQL query to retrieve all records from the food_table
-    query:str = "SELECT food_type FROM glycemic_index"
+    query:str = "SELECT food_type FROM glycemic_index order by food_type"
     app_logger.info(f"Query: {query}")
 
     # Execute the query
