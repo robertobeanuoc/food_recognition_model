@@ -118,6 +118,7 @@ def get_food_register(start_date: datetime.date)-> list[dict]:
 def get_glycemic_index(food_type: str) -> int:
     cnx: mysql.connector.MySQLConnection = _connect_to_db()
     app_logger.info("Connected to the database")
+    ret_glycemic_index:int = 0
 
     # Create a cursor object to execute SQL queries
     cursor = cnx.cursor()
@@ -132,14 +133,15 @@ def get_glycemic_index(food_type: str) -> int:
 
     # Fetch the record
     record = cursor.fetchone()
-    glycemic_index = record[0]
-    app_logger.info("Record fetched")
+    if record:        
+        ret_glycemic_index = record[0]
+        app_logger.info("Record fetched")
+        app_logger.info("Glycemic index fetched")
 
     # Close the cursor and the connection
     cursor.close()
     cnx.close()
     app_logger.info("Connection closed")
 
-    # Return the glycemic index
-    app_logger.info("Glycemic index fetched")
-    return glycemic_index
+
+    return ret_glycemic_index

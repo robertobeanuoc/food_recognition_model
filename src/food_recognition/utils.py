@@ -15,7 +15,11 @@ def extract_json_from_openai(response)->dict:
     json_files:list[str] = re.findall(r'\[[\s\S]*?\]',message_response)
     if len(json_files) == 0 or json_files is None:
         message_parsed: str= re.findall(r'\{[\s\S]*?\}',message_response)[0]
-        ret_output_json =  json.loads(message_parsed)
+        try:
+            ret_output_json =  json.loads(message_parsed)
+        except Exception as e:
+            ret_output_json = {}
+            app_logger.error(f"Error: {e}")
     else:        
         try:
             message_json:str = json_files[0]
