@@ -1,6 +1,7 @@
 import datetime
 from food_recognition.similar_food import find_similar_food
 from food_recognition.db import get_food_register, get_glycemic_index
+import sys
 
 
 def test_get_food_types():
@@ -8,8 +9,11 @@ def test_get_food_types():
 
 
 def test_get_food_register():
+    if len(sys.argv) < 2:
+        print("Please provide the output file path")
+        sys.exit(1)
 
-    with open("/Users/rbean/Documents/GitHub/food_recognition_model/data/food_compare.csv", "w") as f:
+    with open(sys.argv[1], "w") as f:
         f.write("file_uid, food, glycemic_index, similar, similar_glycemic_index, glycemic_index_difference\n")
         food_registers: dict = get_food_register(start_date=datetime.date(2024, 7, 4))
         
