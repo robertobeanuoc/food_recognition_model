@@ -24,8 +24,11 @@ def test_get_food_register():
             original_food: str = food_register['food_type']
             glycemic_index: int = food_register['glycemic_index']
             file_uid: str = food_register['file_uid']
-            original_glycemic_index: str = get_glycemic_index(food_type=similar_food)
-            glycemic_index_difference: int = glycemic_index - original_glycemic_index
+            original_glycemic_index: int = get_glycemic_index(food_type=similar_food)
+            glycemic_index_difference: int  =  None
+            if original_glycemic_index:
+                glycemic_index_difference: int = glycemic_index - original_glycemic_index
+
             output_string: str = f"{file_uid}, {original_food}, {glycemic_index}, {similar_food}, {original_glycemic_index}, {glycemic_index_difference}\n"
             f.write(output_string)
     
