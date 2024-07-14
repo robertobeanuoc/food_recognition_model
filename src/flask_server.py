@@ -8,6 +8,7 @@ from datetime import datetime
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
 from food_recognition.db import insert_food_type
+from food_recognition.similar_food import add_similar_food_info_to_food, find_similar_food
 import json
 import uuid
 
@@ -63,7 +64,7 @@ def upload():
 
     save_files_to_storage(file_image=file_image, file_json=file_json)
     
-    session['food_types'] = json.dumps(food_types)
+    session['food_types'] = add_similar_food_info_to_food(food_types=food_types)
     
 
     return redirect(url_for('view_photo', uuid_img=uuid_img,food_types=food_types))
@@ -94,7 +95,7 @@ def save_files_to_storage(file_image:str, file_json:str):
 def view_photo(uuid_img):    
 
     app_logger.info(f"Viewing photo {uuid_img}")
-    return render_template('view_photo.html', uuid_img=uuid_img, food_types=session['food_types'])
+    return render_template('view_photo.html', uuid_img=uuid_img, app_logger=app_logger)
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5010, ssl_context='adhoc')

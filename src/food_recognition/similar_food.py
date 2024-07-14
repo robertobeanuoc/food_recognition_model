@@ -3,7 +3,7 @@ from time import sleep
 from openai import OpenAI
 from food_recognition.utils import app_logger, extract_json_from_openai
 import os
-from food_recognition.db import get_food_types
+from food_recognition.db import get_food_types, get_glycemic_index
 from jinja2 import Template
 from food_recognition.constants import SIMILAR_JINJA2_TEMPLATE, WAIT_TIME_OPEANAI_API
 
@@ -53,5 +53,15 @@ def find_similar_food(food_type:str) -> str:
     sleep(WAIT_TIME_OPEANAI_API)
 
     return ret_similar_food
+
+
+def add_similar_food_info_to_food(food_types: list[dict]) -> dict:
+    ret_food_types: list[dict] = []
+    for food_type in food_types:
+        food_type['similar_food'] = find_similar_food(food_type['food_type'])
+        food_type['similar_glycemic_index'] = get_glycemic_index(food_type['similar_food'])
+        food_type['all_food_types'] = get_food_types(food_type=food_type['food_type'])
+        ret_food_types.append(food_type)
+    return ret_food_types
 
     

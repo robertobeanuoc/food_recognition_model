@@ -11,13 +11,38 @@
     <img src="{{ url_for('static', filename='uploads/' ~ uuid_img) }}.jpg" alt="Photo">
     <br>
 
-    <div>
-        <div>Json Output</div>
-        <pre>
-            <div>{{ food_types }}</div>
-            </pre>
-    </div>
+    <table style="border: 1px solid black; border-collapse: collapse;">
+        <colgroup>
+            <col style="border-right: 1px solid black;">
+            <col style="border-right: 1px solid black;">
+            <col style="border-right: 1px solid black;">
+            <col style="border-right: 1px solid black;">
+            <col style="border-right: 1px solid black;">
+        </colgroup>
+        <thead>
+            <tr style="border: 1px solid black;">
+                <th align="left">Food Type</th>
+                <th align="right">Glycemic Index</th>
+                <th align="right">Weight (gr)</th>
+                <th align="right">Similar Food</th>
+                <th align="right">Similar Glycemic Index</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for food_type_record in food_types %}
+            <tr>
+                <td align="left">{{ food_type_record['food_type'] }}</td>
+                <td align="right"> {{ food_type_record['glycemic_index'] }} </td>
+                <td align="right">{{ food_type_record['weight_grams'] }} </td>
+                <td align="left">{{ food_type_record['similar_food'] }} </td>
+                <td align="right">{{ food_type_record['similar_glycemic_index'] }} </td>
+                
+                {{app_logger.info(food_type_record['all_food_types'])}}
 
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
     <a href="{{ url_for('index') }}">Take another photo</a>
 </body>
 

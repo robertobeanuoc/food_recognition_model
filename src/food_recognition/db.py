@@ -147,3 +147,37 @@ def get_glycemic_index(food_type: str) -> int:
 
 
     return ret_glycemic_index
+
+
+def get_food_types(food_type: str="")->list[str]:
+    cnx: mysql.connector.MySQLConnection = _connect_to_db()
+    app_logger.info("Connected to the database")
+
+    # Create a cursor object to execute SQL queries
+    cursor = cnx.cursor()
+
+    # Define the SQL query to retrieve all records from the food_table
+    query:str = "SELECT food_type FROM glycemic_index"
+    app_logger.info(f"Query: {query}")
+
+    # Execute the query
+    cursor.execute(query)
+    app_logger.info("Query executed successfully")
+
+    # Fetch all the records
+    records = cursor.fetchall()
+    ret_records = []
+    for record in records:
+        ret_records.append(record[0])
+    if not food_type in records:
+        ret_records.append(food_type)
+    app_logger.info("Records fetched")
+
+    # Close the cursor and the connection
+    cursor.close()
+    cnx.close()
+    app_logger.info("Connection closed")
+
+    # Return the records as JSON
+    app_logger.info("Records fetched")
+    return ",".join(ret_records)
