@@ -86,7 +86,7 @@ def get_food_register(start_date: datetime.date)-> list[dict]:
     cursor = cnx.cursor()
 
     # Define the SQL query to retrieve all records from the food_table
-    query:str = f"SELECT food_type, glycemic_index, weight_grams, created_at FROM food_register where created_at >= '{start_date.strftime('%Y-%m-%d')}'"
+    query:str = f"SELECT food_type, glycemic_index, weight_grams, created_at, file_uid FROM food_register where created_at >= '{start_date.strftime('%Y-%m-%d')}'"
     app_logger.info(f"Query: {query}")
 
     # Execute the query
@@ -102,6 +102,7 @@ def get_food_register(start_date: datetime.date)-> list[dict]:
             'glycemic_index': record[1],
             'weight_grams': record[2],
             'created_at': record[3],
+            'file_uid': record[4],
         }
         records_json.append(record_dict)
     app_logger.info("Records fetched")
@@ -124,6 +125,7 @@ def get_glycemic_index(food_type: str) -> int:
     cursor = cnx.cursor()
 
     # Define the SQL query to retrieve the glycemic index of a food type
+    food_type = food_type.replace("'", "''")
     query:str = f"SELECT glycemic_index FROM glycemic_index WHERE food_type = '{food_type}'"
     app_logger.info(f"Query: {query}")
 

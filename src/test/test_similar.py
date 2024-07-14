@@ -9,8 +9,8 @@ def test_get_food_types():
 
 def test_get_food_register():
 
-    with open("/Users/rbean/temp/food_compare.csv", "w") as f:
-        f.write("food, glycemic_index, similar, similar_glycemic_index, glycemic_index_difference\n")
+    with open("/Users/rbean/Documents/GitHub/food_recognition_model/data/food_compare.csv", "w") as f:
+        f.write("file_uid, food, glycemic_index, similar, similar_glycemic_index, glycemic_index_difference\n")
         food_registers: dict = get_food_register(start_date=datetime.date(2024, 7, 4))
         
         food_registers_filtered:dict  = food_registers
@@ -19,9 +19,10 @@ def test_get_food_register():
             similar_food: str = find_similar_food(food_type=food_register['food_type'].lower())
             original_food: str = food_register['food_type']
             glycemic_index: int = food_register['glycemic_index']
+            file_uid: str = food_register['file_uid']
             original_glycemic_index: str = get_glycemic_index(food_type=similar_food)
             glycemic_index_difference: int = glycemic_index - original_glycemic_index
-            output_string: str = f"{original_food}, {original_glycemic_index}, {similar_food}, {glycemic_index}, {glycemic_index_difference}\n"
+            output_string: str = f"{file_uid}, {original_food}, {glycemic_index}, {similar_food}, {original_glycemic_index}, {glycemic_index_difference}\n"
             f.write(output_string)
     
 
