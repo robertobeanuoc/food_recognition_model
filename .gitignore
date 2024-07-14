@@ -170,3 +170,5 @@ cython_debug/
 
 **/data/***.csv
 .Rproj.user
+*.RData*
+*.Rhistory*
