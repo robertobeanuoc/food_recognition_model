@@ -1,4 +1,4 @@
-Retrieve a food with similar composition to {{food_type}} included only in this CSV file:
+Retrieve a food with similar composition to {{food_type}} included only in this CSV file or the same {{food_type}} if is included in the CSV file:
 
 {{food_types}}
 
@@ -6,3 +6,9 @@ Return a JSON file with a field for the original food named original_food_type a
 
 Only use foods included in the previous JSON file. List only one food.
 
+Add a prefix JSON before the JSON output to facilitate the parsing, and output as code in this format:
+
+```
+JSON 
+    expected expected output
+```

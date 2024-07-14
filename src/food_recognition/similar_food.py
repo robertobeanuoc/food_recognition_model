@@ -1,10 +1,12 @@
 
+from time import sleep
 from openai import OpenAI
-from food_recognition.utils import app_logger
+from food_recognition.utils import app_logger, extract_json_from_openai
 import os
 from food_recognition.db import get_food_types
 from jinja2 import Template
-from food_recognition.constants import SIMILAR_JINJA2_TEMPLATE
+from food_recognition.constants import SIMILAR_JINJA2_TEMPLATE, WAIT_TIME_OPEANAI_API
+
 
 
 def render_template(food_type: str, food_types: dict) -> str:
@@ -15,8 +17,9 @@ def render_template(food_type: str, food_types: dict) -> str:
     return rendered_template
 
 
-def find_similar_food(food_type:str) -> dict:
+def find_similar_food(food_type:str) -> str:
     food_types: dict = get_food_types()
+    ret_similar_food: str = ""
 
         
     csv_string = "food_type,food_type_es\n"
@@ -43,9 +46,12 @@ def find_similar_food(food_type:str) -> dict:
     max_tokens=4096,
     )
 
-    print(response.to_dict()['choices'][0]['message']['content'])
+    similar_food: dict = extract_json_from_openai(response=response)
 
-    
+    ret_similar_food: str = similar_food['food_type']
 
-    # output_json: dict = 
+    sleep(WAIT_TIME_OPEANAI_API)
+
+    return ret_similar_food
+
     

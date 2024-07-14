@@ -78,40 +78,68 @@ def get_food_types()-> list[dict]:
     return records_json
     
 
-    def get_food_register(start_date: datetime.date)-> list[dict]:
-        cnx: mysql.connector.MySQLConnection = _connect_to_db()
-        app_logger.info("Connected to the database")
+def get_food_register(start_date: datetime.date)-> list[dict]:
+    cnx: mysql.connector.MySQLConnection = _connect_to_db()
+    app_logger.info("Connected to the database")
 
-        # Create a cursor object to execute SQL queries
-        cursor = cnx.cursor()
+    # Create a cursor object to execute SQL queries
+    cursor = cnx.cursor()
 
-        # Define the SQL query to retrieve all records from the food_table
-        query:str = f"SELECT food_type, glycemic_index, weight_grams, created_at FROM food_register where created_at >= '{start_date.strftime('%Y-%m-%d')}'"
-        app_logger.info(f"Query: {query}")
+    # Define the SQL query to retrieve all records from the food_table
+    query:str = f"SELECT food_type, glycemic_index, weight_grams, created_at FROM food_register where created_at >= '{start_date.strftime('%Y-%m-%d')}'"
+    app_logger.info(f"Query: {query}")
 
-        # Execute the query
-        cursor.execute(query)
-        app_logger.info("Query executed successfully")
+    # Execute the query
+    cursor.execute(query)
+    app_logger.info("Query executed successfully")
 
-        # Fetch all the records
-        records = cursor.fetchall()
-        records_json = []
-        for record in records:
-            record_dict = {
-                'food_type': record[0],
-                'glycemic_index': record[1],
-                'weight_grams': record[2],
-                'created_at': record[3],
-            }
-            records_json.append(record_dict)
-        app_logger.info("Records fetched")
+    # Fetch all the records
+    records = cursor.fetchall()
+    records_json = []
+    for record in records:
+        record_dict = {
+            'food_type': record[0],
+            'glycemic_index': record[1],
+            'weight_grams': record[2],
+            'created_at': record[3],
+        }
+        records_json.append(record_dict)
+    app_logger.info("Records fetched")
 
-        # Close the cursor and the connection
-        cursor.close()
-        cnx.close()
-        app_logger.info("Connection closed")
+    # Close the cursor and the connection
+    cursor.close()
+    cnx.close()
+    app_logger.info("Connection closed")
 
-        # Return the records as JSON
-        app_logger.info("Records fetched")
-        return records_json
-    
+    # Return the records as JSON
+    app_logger.info("Records fetched")
+    return records_json
+
+def get_glycemic_index(food_type: str) -> int:
+    cnx: mysql.connector.MySQLConnection = _connect_to_db()
+    app_logger.info("Connected to the database")
+
+    # Create a cursor object to execute SQL queries
+    cursor = cnx.cursor()
+
+    # Define the SQL query to retrieve the glycemic index of a food type
+    query:str = f"SELECT glycemic_index FROM glycemic_index WHERE food_type = '{food_type}'"
+    app_logger.info(f"Query: {query}")
+
+    # Execute the query
+    cursor.execute(query)
+    app_logger.info("Query executed successfully")
+
+    # Fetch the record
+    record = cursor.fetchone()
+    glycemic_index = record[0]
+    app_logger.info("Record fetched")
+
+    # Close the cursor and the connection
+    cursor.close()
+    cnx.close()
+    app_logger.info("Connection closed")
+
+    # Return the glycemic index
+    app_logger.info("Glycemic index fetched")
+    return glycemic_index
