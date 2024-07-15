@@ -49,6 +49,7 @@ def upload():
     file_bytes = np.frombuffer(file.read(), np.uint8)
     img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)    # Save the image
 
+    app_logger.info(f"Current working  directory: {os.getcwd()}")
     # Remove all files under uploads folder
     for file in os.listdir(UPLOAD_FOLDER):
         os.remove(os.path.join(UPLOAD_FOLDER, file))
