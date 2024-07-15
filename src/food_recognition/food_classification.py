@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 import base64
+from time import sleep
 from openai import OpenAI
-from utils import app_logger
+from food_recognition.utils import app_logger
 import os
-import re
-import json
+from food_recognition.utils import extract_json_from_openai
+from food_recognition.constants import WAIT_TIME_OPEANAI_API
 
 
 def encode_image(image_file:str)->bytes:
@@ -39,20 +40,11 @@ def classify_image(image_file:str) -> dict:
     ],
     max_tokens=300,
     )
-    message_response:str = response.to_dict()['choices'][0]['message']['content'].replace("json", "").replace("```", "")
-    app_logger.info(f"Message response: {message_response}")
-    json_files:list[str] = re.findall(r'\[[\s\S]*?\]',message_response)
-    if json_files.count == 0 or json_files is None:
-        app_logger.error("No json file found")
-    else:        
-        try:
-            message_json:str = json_files[0]
-            app_logger.info(f"Message json: {message_json}")
-            output_json = json.loads(message_json)
-        except Exception as e:
-            output_json = {}
-            app_logger.error(f"Error: {e}")
+    sleep(WAIT_TIME_OPEANAI_API)
+    output_json = extract_json_from_openai(response)
     return output_json
+
+
     
     
     

@@ -4,19 +4,23 @@ from flask import Flask, session ,render_template, request, redirect, url_for
 import cv2
 import numpy as np
 import os
-from datetime import datetime
-from food_classification import classify_image
-from utils import app_logger
-from db import insert_food_type
+from food_recognition.food_classification import classify_image
+from food_recognition.utils import app_logger
+from food_recognition.db import get_glycemic_index, insert_food_type, insert_food_type_update
+from food_recognition.similar_food import add_similar_food_info_to_food
 import json
 import uuid
 
-app = Flask(__name__,static_folder='static', template_folder='templates')
+from flask_session import Session
+
+app = Flask(__name__,static_folder='food_recognition/static', template_folder='food_recognition/templates')
 app.secret_key = os.getenv('SECRET_KEY')
 
-UPLOAD_FOLDER = 'static/uploads/'
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SECRET_KEY"] = app.secret_key
+UPLOAD_FOLDER:str = 'food_recognition/static/uploads'
+
+Session(app)
 
 @app.route('/')
 def index():
@@ -45,6 +49,7 @@ def upload():
     file_bytes = np.frombuffer(file.read(), np.uint8)
     img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)    # Save the image
 
+    app_logger.info(f"Current working  directory: {os.getcwd()}")
     # Remove all files under uploads folder
     for file in os.listdir(UPLOAD_FOLDER):
         os.remove(os.path.join(UPLOAD_FOLDER, file))
@@ -63,10 +68,10 @@ def upload():
 
     save_files_to_storage(file_image=file_image, file_json=file_json)
     
-    session['food_types'] = json.dumps(food_types)
+    session['food_types'] = add_similar_food_info_to_food(food_types=food_types)
     
 
-    return redirect(url_for('view_photo', uuid_img=uuid_img,food_types=food_types))
+    return redirect(url_for('view_photo', uuid_img=uuid_img))
 
 def save_image(img)->str:
     app_logger.info("Saving the image ..")
@@ -94,7 +99,23 @@ def save_files_to_storage(file_image:str, file_json:str):
 def view_photo(uuid_img):    
 
     app_logger.info(f"Viewing photo {uuid_img}")
-    return render_template('view_photo.html', uuid_img=uuid_img, food_types=session['food_types'])
+    return render_template('view_photo.html', uuid_img=uuid_img, app_logger=app_logger, food_types=session['food_types'])
+
+
+@app.route('/update_values', methods=['POST'])
+def update_values():
+    app_logger.info("Updating values ..")
+    num_food_types:int = 0
+    if 'num_food_types' in request.form:
+        num_food_types = int(request.form['num_food_types'])
+    uuid_img:str = request.form['uuid_img']
+    for i in range(1, num_food_types+1):
+        food_type = request.form[f'food_type_{i}']
+        glycemic_index:int =  get_glycemic_index(food_type=food_type)
+        weight_grams:int = int(request.form[f'weight_grams_{i}'])
+        insert_food_type_update(file_uid=uuid_img, food_type=food_type, glycemic_index=glycemic_index, weight_grams=weight_grams)
+
+    return redirect(url_for('view_photo', uuid_img=uuid_img))
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5010, ssl_context='adhoc')
