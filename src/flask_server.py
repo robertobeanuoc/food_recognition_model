@@ -4,7 +4,6 @@ from flask import Flask, session ,render_template, request, redirect, url_for
 import cv2
 import numpy as np
 import os
-from datetime import datetime
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
 from food_recognition.db import get_glycemic_index, insert_food_type, insert_food_type_update
@@ -19,12 +18,9 @@ app.secret_key = os.getenv('SECRET_KEY')
 
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SECRET_KEY"] = app.secret_key
+UPLOAD_FOLDER:str = 'food_recognition/static/uploads'
 
 Session(app)
-
-UPLOAD_FOLDER = 'src/food_recognition/static/uploads'
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
 
 @app.route('/')
 def index():
@@ -108,12 +104,14 @@ def view_photo(uuid_img):
 @app.route('/update_values', methods=['POST'])
 def update_values():
     app_logger.info("Updating values ..")
-    num_food_types:int = int(request.form['num_food_types'])
+    num_food_types:int = 0
+    if 'num_food_types' in request.form:
+        num_food_types = int(request.form['num_food_types'])
     uuid_img:str = request.form['uuid_img']
     for i in range(1, num_food_types+1):
         food_type = request.form[f'food_type_{i}']
-        glycemic_index =  get_glycemic_index(food_type=food_type)
-        weight_grams = request.form[f'weight_grams_{i}']
+        glycemic_index:int =  get_glycemic_index(food_type=food_type)
+        weight_grams:int = int(request.form[f'weight_grams_{i}'])
         insert_food_type_update(file_uid=uuid_img, food_type=food_type, glycemic_index=glycemic_index, weight_grams=weight_grams)
 
     return redirect(url_for('view_photo', uuid_img=uuid_img))
