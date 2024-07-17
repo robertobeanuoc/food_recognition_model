@@ -44,12 +44,7 @@
                     <td align="right"><input name="weight_grams_{{ loop.index }}" type="number" step="10"
                             value="{{ food_type_record['weight_grams'] }}" /> </td>
                     <td align="left">
-                        <select>
-                            {% for food in food_type_record['all_food_types'].split(',') %}
-                            <option value="{{food}}" {% if food==food_type_record['similar_food'] %} selected {%
-                                endif%}>{{ food }}</option>
-                            {% endfor %}
-                        </select>
+                        {{food_type_record['similar_food']}}                    
                     </td>
                     <td align="right">{{ food_type_record['similar_glycemic_index'] }} </td>
                 </tr>

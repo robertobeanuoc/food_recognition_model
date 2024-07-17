@@ -117,5 +117,9 @@ def update_values():
 
     return redirect(url_for('view_photo', uuid_img=uuid_img))
 
+@app.route('/meals')
+def meals():
+    return render_template('meals.html')
+
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5010, ssl_context='adhoc')
