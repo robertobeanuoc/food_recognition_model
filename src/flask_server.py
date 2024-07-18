@@ -1,4 +1,5 @@
 
+import datetime
 import shutil
 from flask import Flask, session ,render_template, request, redirect, url_for
 import cv2
@@ -6,7 +7,7 @@ import numpy as np
 import os
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
-from food_recognition.db import get_glycemic_index, insert_food_type, insert_food_type_update
+from food_recognition.db import get_glycemic_index, insert_food_type, insert_food_type_update, get_food_registers    
 from food_recognition.similar_food import add_similar_food_info_to_food
 import json
 import uuid
@@ -119,7 +120,8 @@ def update_values():
 
 @app.route('/meals')
 def meals():
-    return render_template('meals.html')
+    food_registers: list[dict] = get_food_registers(start_date=datetime.date.today()-datetime.timedelta(days=30) ) 
+    return render_template('meals.html', food_registers=food_registers)
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5010, ssl_context='adhoc')

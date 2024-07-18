@@ -6,6 +6,31 @@
     <title>Captured meals</title> 
 </head>
 <body>
-
+    <table style="border: 1px solid black; border-collapse: collapse;">
+        <colgroup>
+            <col style="border-right: 1px solid black;">
+            <col style="border-right: 1px solid black;">
+            <col style="border-right: 1px solid black;">
+            <col style="border-right: 1px solid black;">
+            <col style="border-right: 1px solid black;">
+        </colgroup>
+        <thead>
+            <tr style="border: 1px solid black;">  
+                <th align="left">Created At</th>          
+                <th align="left">Food Type</th>
+                <th align="right">Glycemic Index</th>
+                <th align="right">Weight (gr)</th>
+                <th align="left">Photo</th>
+            </tr>
+            {%for food_register in food_registers%}
+            <tr>
+                <td>{{food_register['created_at'].strftime('%Y-%m-%d %H:%M')}}</td>
+                <td>{{food_register['food_type']}}</td>
+                <td>{{food_register['glycemic_index']}}</td>
+                <td>{{food_register['weight_grams']}}</td>
+                <td></td>
+            </tr>
+            {%endfor%}
+    </table>
 </body>
 </html> 

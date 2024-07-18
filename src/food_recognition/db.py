@@ -106,7 +106,7 @@ def get_food_types()-> list[dict]:
     return records_json
     
 
-def get_food_register(start_date: datetime.date)-> list[dict]:
+def get_food_registers(start_date: datetime.date)-> list[dict]:
     cnx: mysql.connector.MySQLConnection = _connect_to_db()
     app_logger.info("Connected to the database")
 
@@ -114,7 +114,7 @@ def get_food_register(start_date: datetime.date)-> list[dict]:
     cursor = cnx.cursor()
 
     # Define the SQL query to retrieve all records from the food_table
-    query:str = f"SELECT food_type, glycemic_index, weight_grams, created_at, file_uid FROM food_register where created_at >= '{start_date.strftime('%Y-%m-%d')}'"
+    query:str = f"SELECT food_type, glycemic_index, weight_grams, created_at, file_uid FROM food_register where created_at >= '{start_date.strftime('%Y-%m-%d')}' order by created_at desc"
     app_logger.info(f"Query: {query}")
 
     # Execute the query
