@@ -13,6 +13,7 @@
             <col style="border-right: 1px solid black;">
             <col style="border-right: 1px solid black;">
             <col style="border-right: 1px solid black;">
+            <col style="border-right: 1px solid black;">
         </colgroup>
         <thead>
             <tr style="border: 1px solid black;">  
@@ -21,6 +22,7 @@
                 <th align="right">Glycemic Index</th>
                 <th align="right">Weight (gr)</th>
                 <th align="left">Photo</th>
+                <th align="left">Verified</th>
             </tr>
             {%for food_register in food_registers%}
             <tr>
@@ -28,7 +30,9 @@
                 <td>{{food_register['food_type']}}</td>
                 <td>{{food_register['glycemic_index']}}</td>
                 <td>{{food_register['weight_grams']}}</td>
-                <td></td>
+                <td><img src="/photo/{{food_register['file_uid']}}.jpg" width="100" height="100"></td>
+                <td><input type="checkbox" {% if food_register['verified'] %}checked{% endif %}/></td>
+            </tr>
             </tr>
             {%endfor%}
     </table>

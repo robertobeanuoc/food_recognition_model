@@ -114,7 +114,7 @@ def get_food_registers(start_date: datetime.date)-> list[dict]:
     cursor = cnx.cursor()
 
     # Define the SQL query to retrieve all records from the food_table
-    query:str = f"SELECT food_type, glycemic_index, weight_grams, created_at, file_uid FROM food_register where created_at >= '{start_date.strftime('%Y-%m-%d')}' order by created_at desc"
+    query:str = f"SELECT food_type, glycemic_index, weight_grams, created_at, file_uid, verified FROM food_register where created_at >= '{start_date.strftime('%Y-%m-%d')}' order by created_at desc"
     app_logger.info(f"Query: {query}")
 
     # Execute the query
@@ -131,6 +131,7 @@ def get_food_registers(start_date: datetime.date)-> list[dict]:
             'weight_grams': record[2],
             'created_at': record[3],
             'file_uid': record[4],
+            'verified': record[5],
         }
         records_json.append(record_dict)
     app_logger.info("Records fetched")

@@ -1,7 +1,7 @@
 
 import datetime
 import shutil
-from flask import Flask, session ,render_template, request, redirect, url_for
+from flask import Flask, session ,render_template, request, redirect, url_for, Blueprint
 import cv2
 import numpy as np
 import os
@@ -14,8 +14,12 @@ import uuid
 
 from flask_session import Session
 
+
 app = Flask(__name__,static_folder='food_recognition/static', template_folder='food_recognition/templates')
 app.secret_key = os.getenv('SECRET_KEY')
+
+additionnal_static: Blueprint = Blueprint('additional_static', __name__, static_folder=os.getenv('PHOTO_FOLDER'),static_url_path='/photo')
+app.register_blueprint(additionnal_static)
 
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SECRET_KEY"] = app.secret_key
