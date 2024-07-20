@@ -129,9 +129,10 @@ def update_verified(file_uid:str, food_type:str, verified:bool):
     return redirect(url_for('meals'))
 
 
-@app.route('/view_photo/<file_uid>/<created_at>', methods=['GET'])
-def view_photo(file_uid:str, created_at:str):
-    return render_template('view_photo.html', uuid_img=file_uid, created_at=created_at)
+@app.route('/view_photo/<file_uid>', methods=['GET'])
+def view_photo(file_uid:str):
+    food_registers: list[dict] = get_food_registers(file_uid=file_uid)
+    return render_template('view_photo.html', uuid_img=file_uid)
 
 @app.route('/meals')
 def meals():
