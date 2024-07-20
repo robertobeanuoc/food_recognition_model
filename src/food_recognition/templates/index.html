@@ -18,14 +18,14 @@
             height: auto;
         }
 
-        #snap {
+        #but {
             font-size: 1em;
             padding: 10px;
             margin-top: 20px;
         }
 
         @media (min-width: 768px) {
-            #snap {
+            #but {
                 font-size: 1.2em;
                 padding: 15px;
                 margin-top: 20px;
@@ -41,7 +41,11 @@
         <form id="upload-form" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
             <input type="hidden" name="file" id="file">
         </form>    
-        <button id="snap">Snap Photo</button>        
+        <button  class="but" id="snap">Snap Photo</button>   
+        <button class="but" id="stop_start_video">Stop Video</button>   
+    </div>     
+    <div>
+        <a href="{{ url_for('meals') }}">Show all captured meals</a>
     </div>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>

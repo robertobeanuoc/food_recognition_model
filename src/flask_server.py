@@ -1,20 +1,25 @@
 
+import datetime
 import shutil
-from flask import Flask, session ,render_template, request, redirect, url_for
+from flask import Flask, session ,render_template, request, redirect, url_for, Blueprint
 import cv2
 import numpy as np
 import os
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
-from food_recognition.db import get_glycemic_index, insert_food_type, insert_food_type_update
+from food_recognition.db import get_glycemic_index, insert_food_type, insert_food_type_update, get_food_registers    
 from food_recognition.similar_food import add_similar_food_info_to_food
 import json
 import uuid
 
 from flask_session import Session
 
+
 app = Flask(__name__,static_folder='food_recognition/static', template_folder='food_recognition/templates')
 app.secret_key = os.getenv('SECRET_KEY')
+
+additionnal_static: Blueprint = Blueprint('additional_static', __name__, static_folder=os.getenv('PHOTO_FOLDER'),static_url_path='/photo')
+app.register_blueprint(additionnal_static)
 
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SECRET_KEY"] = app.secret_key
@@ -116,6 +121,11 @@ def update_values():
         insert_food_type_update(file_uid=uuid_img, food_type=food_type, glycemic_index=glycemic_index, weight_grams=weight_grams)
 
     return redirect(url_for('view_photo', uuid_img=uuid_img))
+
+@app.route('/meals')
+def meals():
+    food_registers: list[dict] = get_food_registers(start_date=datetime.date.today()-datetime.timedelta(days=30) ) 
+    return render_template('meals.html', food_registers=food_registers)
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5010, ssl_context='adhoc')

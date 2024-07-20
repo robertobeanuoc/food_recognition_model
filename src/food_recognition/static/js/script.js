@@ -19,36 +19,49 @@ navigator.mediaDevices.getUserMedia({ video: {facingMode: "environment"} , width
 
 snap.addEventListener('click', () => {
 
-    const context = canvas.getContext('2d');
-    console.log('Taking canvas  width: ' + canvas.width + ' height:' + canvas.height);
-    console.log('Taking video width: ' + video.videoWidt + ' height:' + video.videoHeigh);
 
-    canvas.width = video.videoWidth; // Set canvas width to video's width
-    canvas.height = video.videoHeight; // Set canvas height to video's height
+    if (document.getElementById("stop_start_video").innerHTML != "Stop Video") {
+        const errorMessage = "Please start the video before taking a picture.";
+        alert(errorMessage);
+    }else{
 
 
-    context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-    document.getElementById("snap").innerHTML = "Processing...";
+        const context = canvas.getContext('2d');
+        console.log('Taking canvas  width: ' + canvas.width + ' height:' + canvas.height);
+        console.log('Taking video width: ' + video.videoWidt + ' height:' + video.videoHeigh);
 
-    canvas.toBlob(blob => {
-        const formData = new FormData();
-        formData.append('file', blob, 'photo.jpg');
+        canvas.width = video.videoWidth; // Set canvas width to video's width
+        canvas.height = video.videoHeight; // Set canvas height to video's height
 
-        fetch('/upload', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            return response.url;
-        })  
-        .then(data => {
-            console.log(data);
-            window.location.href = data;
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        });
-    }, 'image/jpeg');
+        context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);       
+        document.getElementById("snap").innerHTML = "Processing...";
+
+        canvas.toBlob(blob => {
+            const formData = new FormData();
+            formData.append('file', blob, 'photo.jpg');
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                return response.url;
+            })  
+            .then(data => {
+                console.log(data);
+                window.location.href = data;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }, 'image/jpeg');
+        stop_start_video_function();
+    }
+});
+
+
+stop_start_video.addEventListener('click', () => {
+    stop_start_video_function();
 });
 
 
@@ -57,6 +70,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.addEventListener('resize', adjustCanvasSize);
 });
+
+function stop_start_video_function() {
+    if (localStream) {
+        const videoTracks = localStream.getVideoTracks();
+        videoTracks[0].enabled = !videoTracks[0].enabled;
+        stop_start_video.innerHTML = videoTracks[0].enabled ? 'Stop Video' : 'Start Video';
+    }
+}
 
 function adjustCanvasSize() {
     var canvas = document.getElementById('video');

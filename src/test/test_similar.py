@@ -1,6 +1,6 @@
 import datetime
 from food_recognition.similar_food import find_similar_food
-from food_recognition.db import get_food_register, get_glycemic_index
+from food_recognition.db import get_food_registers, get_glycemic_index
 import sys
 
 
@@ -15,7 +15,7 @@ def test_get_food_register():
 
     with open(sys.argv[1], "w") as f:
         f.write("file_uid, food, glycemic_index, similar, similar_glycemic_index, glycemic_index_difference\n")
-        food_registers: dict = get_food_register(start_date=datetime.date(2024, 7, 4))
+        food_registers: dict = get_food_registers(start_date=datetime.date(2024, 7, 4))
         
         food_registers_filtered:dict  = food_registers
         #[food_register for food_register in food_registers if food_register['food_type'].lower() == 'banana']
