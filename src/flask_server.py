@@ -76,7 +76,7 @@ def upload():
     session['food_types'] = add_similar_food_info_to_food(food_types=food_types)
     
 
-    return redirect(url_for('view_photo', uuid_img=uuid_img))
+    return redirect(url_for('review_photo', uuid_img=uuid_img))
 
 def save_image(img)->str:
     app_logger.info("Saving the image ..")
@@ -100,11 +100,11 @@ def save_files_to_storage(file_image:str, file_json:str):
         app_logger.error(f"Error copying folder content: {e}")
 
 
-@app.route('/view_photo/<uuid_img>')
-def view_photo(uuid_img):    
+@app.route('/review_photo/<uuid_img>')
+def review_photo(uuid_img):    
 
     app_logger.info(f"Viewing photo {uuid_img}")
-    return render_template('view_photo.html', uuid_img=uuid_img, app_logger=app_logger, food_types=session['food_types'])
+    return render_template('review_photo.html', uuid_img=uuid_img, app_logger=app_logger, food_types=session['food_types'])
 
 
 @app.route('/update_values', methods=['POST'])
@@ -120,13 +120,18 @@ def update_values():
         weight_grams:int = int(request.form[f'weight_grams_{i}'])
         insert_food_type_update(file_uid=uuid_img, food_type=food_type, glycemic_index=glycemic_index, weight_grams=weight_grams)
 
-    return redirect(url_for('view_photo', uuid_img=uuid_img))
+    return redirect(url_for('review_photo', uuid_img=uuid_img))
 
 @app.route('/update_verified/<file_uid>/<food_type>/<int:verified>' , methods=['GET','POST'])
 def update_verified(file_uid:str, food_type:str, verified:bool):
     app_logger.info(f"Updating verified for {food_type} for file uid {file_uid}..")
     update_verfied(file_uid=file_uid, food_type=food_type, verfied=verified)
     return redirect(url_for('meals'))
+
+
+@app.route('/view_photo/<file_uid>/<created_at>', methods=['GET'])
+def view_photo(file_uid:str, created_at:str):
+    return render_template('view_photo.html', uuid_img=file_uid, created_at=created_at)
 
 @app.route('/meals')
 def meals():
