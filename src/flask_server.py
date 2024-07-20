@@ -7,7 +7,7 @@ import numpy as np
 import os
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
-from food_recognition.db import get_glycemic_index, insert_food_type, insert_food_type_update, get_food_registers    
+from food_recognition.db import get_glycemic_index, insert_food_type, insert_food_type_update, update_verfied, get_food_registers
 from food_recognition.similar_food import add_similar_food_info_to_food
 import json
 import uuid
@@ -121,6 +121,12 @@ def update_values():
         insert_food_type_update(file_uid=uuid_img, food_type=food_type, glycemic_index=glycemic_index, weight_grams=weight_grams)
 
     return redirect(url_for('view_photo', uuid_img=uuid_img))
+
+@app.route('/update_verified/<file_uid>/<food_type>/<int:verified>' , methods=['GET','POST'])
+def update_verified(file_uid:str, food_type:str, verified:bool):
+    app_logger.info(f"Updating verified for {food_type} for file uid {file_uid}..")
+    update_verfied(file_uid=file_uid, food_type=food_type, verfied=verified)
+    return redirect(url_for('meals'))
 
 @app.route('/meals')
 def meals():
