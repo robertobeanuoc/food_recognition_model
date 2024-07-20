@@ -29,7 +29,7 @@
                 <th align="left">Verified</th>
             </tr>
             {%for food_register in food_registers%}
-            <tr>
+            <tr style="border-bottom: 1px solid black;">
                 <td>{{food_register['created_at'].strftime('%Y-%m-%d %H:%M')}}</td>
                 <td>{{food_register['food_type']}}</td>
                 <td>{{food_register['glycemic_index']}}</td>
