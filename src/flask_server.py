@@ -136,8 +136,9 @@ def view_photo(file_uid:str):
 
 @app.route('/meals')
 def meals():
-    food_registers: list[dict] = get_food_registers(start_date=datetime.date.today()-datetime.timedelta(days=30) ) 
-    return render_template('meals.html', food_registers=food_registers)
+    start_date: datetime.date = datetime.date.today()-datetime.timedelta(days=30)
+    food_registers: list[dict] = get_food_registers(start_date=start_date ) 
+    return render_template('meals.html', food_registers=food_registers, start_date=start_date)
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5010, ssl_context='adhoc')
