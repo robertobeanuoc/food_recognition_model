@@ -114,7 +114,12 @@ def get_food_registers(start_date: datetime.date=None,file_uid: str = None)-> li
     cursor = cnx.cursor()
 
     # Define the SQL query to retrieve all records from the food_table
-    query:str = f"SELECT food_type, glycemic_index, weight_grams, created_at, file_uid, verified FROM food_register where created_at >= '{start_date.strftime('%Y-%m-%d')}' order by created_at desc"
+    query:str = f"SELECT food_type, glycemic_index, weight_grams, created_at, file_uid, verified FROM food_register where 1=1"
+    if file_uid:
+        query += f" and file_uid = '{file_uid}'"
+    if start_date:
+        query += f" and created_at >= '{start_date.strftime('%Y-%m-%d')}'"
+    query+=" order by created_at desc"
     app_logger.info(f"Query: {query}")
 
     # Execute the query
