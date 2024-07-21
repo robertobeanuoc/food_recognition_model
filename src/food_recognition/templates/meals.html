@@ -29,12 +29,12 @@
                 <th align="left">Verified</th>
             </tr>
             {%for food_register in food_registers%}
-            <tr>
+            <tr style="border-bottom: 1px solid black;">
                 <td>{{food_register['created_at'].strftime('%Y-%m-%d %H:%M')}}</td>
                 <td>{{food_register['food_type']}}</td>
                 <td>{{food_register['glycemic_index']}}</td>
                 <td>{{food_register['weight_grams']}}</td>
-                <td><a href="/photo/{{food_register['file_uid']}}.jpg">
+                <td><a href="/view_photo/{{food_register['file_uid']}}">
                         <img src="/photo/{{food_register['file_uid']}}.jpg" width="100" height="100" />
                     </a>
                 </td>

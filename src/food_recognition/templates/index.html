@@ -40,13 +40,13 @@
         <canvas id="canvas" style="display: none;"></canvas>
         <form id="upload-form" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
             <input type="hidden" name="file" id="file">
-        </form>    
+        </form>   
+        <br/> 
         <button  class="but" id="snap">Snap Photo</button>   
         <button class="but" id="stop_start_video">Stop Video</button>   
-    </div>     
-    <div>
-        <a href="{{ url_for('meals') }}">Show all captured meals</a>
-    </div>
+    <p id = "result">
+    <a href="{{ url_for('meals') }}">Show all captured meals</a>
+    </p>
     <script src="{{ url_for('static', filename='js/index.js') }}"></script>
 </body>
 </html>

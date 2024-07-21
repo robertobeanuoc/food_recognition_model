@@ -106,7 +106,7 @@ def get_food_types()-> list[dict]:
     return records_json
     
 
-def get_food_registers(start_date: datetime.date)-> list[dict]:
+def get_food_registers(start_date: datetime.date=None,file_uid: str = None)-> list[dict]:
     cnx: mysql.connector.MySQLConnection = _connect_to_db()
     app_logger.info("Connected to the database")
 

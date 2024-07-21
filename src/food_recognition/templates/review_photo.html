@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Photo {{uuid_img}}</title>
+</head>
+
+<body>
+    <img src="{{ url_for('static', filename='uploads/' ~ uuid_img) }}.jpg" alt="Photo">
+    <br>
+    <form id="form_update" action="{{ url_for('update_values') }}" method="POST">
+        <table style="border: 1px solid black; border-collapse: collapse;">
+            <colgroup>
+                <col style="border-right: 1px solid black;">
+                <col style="border-right: 1px solid black;">
+                <col style="border-right: 1px solid black;">
+                <col style="border-right: 1px solid black;">
+                <col style="border-right: 1px solid black;">
+            </colgroup>
+            <thead>
+                <tr style="border: 1px solid black;">
+                    <th align="left">Food Type</th>
+                    <th align="right">Glycemic Index</th>
+                    <th align="right">Weight (gr)</th>
+                    <th align="left">Similar Food</th>
+                    <th align="right">Similar Glycemic Index</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for food_type_record in food_types %}
+                <tr>
+                    <td align="left">
+                        <select name="food_type_{{ loop.index }}">
+                            {% for food in food_type_record['all_food_types'].split(',') %}
+                            <option value="{{food}}" {% if food==food_type_record['food_type'] %} selected {% endif%}>{{
+                                food }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td align="right"><input name="glycemic_index_{{ loop.index }}" type="number" step="5"
+                            value="{{ food_type_record['glycemic_index'] }}" /> </td>
+                    <td align="right"><input name="weight_grams_{{ loop.index }}" type="number" step="10"
+                            value="{{ food_type_record['weight_grams'] }}" /> </td>
+                    <td align="left">
+                        {{food_type_record['similar_food']}}                    
+                    </td>
+                    <td align="right">{{ food_type_record['similar_glycemic_index'] }} </td>
+                </tr>
+                {% if loop.index == 1 %}<input type="hidden" name="num_food_types" value="{{loop.length}}" /> {% endif
+                %}
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <input type="hidden" name="uuid_img" value="{{uuid_img}}" />
+        <button type="submit" form="form_update" value="Update">Update values</button>
+    </form>
+    <br />
+    <a href="{{ url_for('index') }}">Take another photo</a>
+</body>
+
+</html>
