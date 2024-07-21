@@ -132,7 +132,7 @@ def update_verified(file_uid:str, food_type:str, verified:bool):
 @app.route('/view_photo/<file_uid>', methods=['GET'])
 def view_photo(file_uid:str):
     food_registers: list[dict] = get_food_registers(file_uid=file_uid)
-    return render_template('view_photo.html', uuid_img=file_uid)
+    return render_template('view_photo.html', uuid_img=file_uid,food_registers=food_registers)
 
 @app.route('/meals')
 def meals():
