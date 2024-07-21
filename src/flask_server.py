@@ -134,11 +134,16 @@ def view_photo(file_uid:str):
     food_registers: list[dict] = get_food_registers(file_uid=file_uid)
     return render_template('view_photo.html', uuid_img=file_uid,food_registers=food_registers)
 
-@app.route('/meals')
-def meals():
-    start_date: datetime.date = datetime.date.today()-datetime.timedelta(days=30)
-    food_registers: list[dict] = get_food_registers(start_date=start_date ) 
-    return render_template('meals.html', food_registers=food_registers, start_date=start_date)
+@app.route('/meals', methods=['GET','POST'])
+@app.route('/meals/<start_date>', methods=['GET','POST'])
+def meals(start_date: str=None):
+    filter_start_date:datetime.date = datetime.date.today()
+    if start_date:
+        filter_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+    else:
+        filter_start_date = filter_start_date - datetime.timedelta(days=int(os.getenv("DEFAULT_DAYS")))
+    food_registers: list[dict] = get_food_registers(start_date=filter_start_date) 
+    return render_template('meals.html', food_registers=food_registers, start_date=filter_start_date)
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5010, ssl_context='adhoc')

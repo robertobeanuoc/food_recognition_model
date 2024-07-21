@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Captured meals</title>
     <script src="{{ url_for('static', filename='js/meals.js') }}"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </head>
 
 <body>
@@ -13,8 +15,11 @@
     <a href="{{ url_for('index') }}">Take a food photo</a>
     </p>
     <p>
-    Data filtred from {{start_date}} 
+    Data filtred from <input type="text" id="datepicker" value="{{start_date}}"/> 
     </p>
+    <script>
+        flatpickr("#datepicker", {});
+      </script>
     <table style="border: 1px solid black; border-collapse: collapse;">
         <colgroup>
             <col style="border-right: 1px solid black;">
