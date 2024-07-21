@@ -135,8 +135,10 @@ def view_photo(file_uid:str):
     return render_template('view_photo.html', uuid_img=file_uid,food_registers=food_registers)
 
 @app.route('/meals', methods=['GET','POST'])
-@app.route('/meals/<start_date>', methods=['GET','POST'])
-def meals(start_date: str=None):
+def meals():
+    start_date: str = ""
+    if 'datepicker' in request.form:
+        start_date = request.form['datepicker']
     filter_start_date:datetime.date = datetime.date.today()
     if start_date:
         filter_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()

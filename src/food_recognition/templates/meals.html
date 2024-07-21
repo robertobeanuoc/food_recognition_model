@@ -14,8 +14,10 @@
     <p>
     <a href="{{ url_for('index') }}">Take a food photo</a>
     </p>
-    <p>
-    Data filtred from <input type="text" id="datepicker" value="{{start_date}}"/> 
+    <form action="{{ url_for('meals') }}" method="post">
+        Data filtred from <input type="text" name="datepicker" id="datepicker" value="{{start_date}}"/> 
+        <input type="submit" value="Filter" />
+    </form>
     </p>
     <script>
         flatpickr("#datepicker", {});
