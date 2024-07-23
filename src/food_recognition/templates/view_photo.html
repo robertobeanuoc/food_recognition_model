@@ -21,24 +21,27 @@
                 <col style="border-right: 1px solid black;">
                 <col style="border-right: 1px solid black;">
                 <col style="border-right: 1px solid black;">
+                <col style="border-right: 1px solid black;">
             </colgroup>
             <thead>
                 <tr style="border: 1px solid black;">
                     <th align="left">Food Type</th>
                     <th align="right">Glycemic Index</th>
                     <th align="right">Weight (gr)</th>
+                    <th align="left">Similar Food Type</th>
+                    <th align="left">Glycemic Index</th>
                     <th align="right">Verified</th>
                 </tr>
             </thead>
             <tbody>
                 {% for food_type_record in food_registers %}
                 <tr>
-                    <td align="left">
-                        {{food_type_record['food_type']}}
-                    </td>
+                    <td align="left">{{food_type_record['food_type']}}</td>
                     <td align="right">{{food_type_record['glycemic_index']}}</td>
-                    <td align="right">{{ food_type_record['weight_grams'] }}</td>
-                    <td><input type="checkbox" {% if food_type_record['verified'] %}checked{% endif %} disabled/></td>
+                    <td align="right">{{ food_type_record['weight_grams'] }}</td>                    
+                    <td align="left">{{food_type_record['similar_food']}}</td>
+                    <td align="left">{{ food_type_record['similar_glycemic_index'] }}</td>
+                    <td><input type="checkbox" {% if food_type_record['verified'] %}checked{% endif %} disabled/></td>                    
                 </tr>
                 </tr>
                 {% if loop.index == 1 %}<input type="hidden" name="num_food_types" value="{{loop.length}}" /> {% endif
