@@ -55,13 +55,13 @@ def find_similar_food(food_type:str) -> str:
     return ret_similar_food
 
 
-def add_similar_food_info_to_food(food_types: list[dict]) -> dict:
-    ret_food_types: list[dict] = []
-    for food_type in food_types:
-        food_type['similar_food'] = find_similar_food(food_type['food_type'])
-        food_type['similar_glycemic_index'] = get_glycemic_index(food_type['similar_food'])
-        food_type['all_food_types'] = get_food_types_list(food_type=food_type['food_type'])
-        ret_food_types.append(food_type)
-    return ret_food_types
+def add_similar_food_info_to_food(food_registers: list[dict]) -> dict:
+    ret_food_registers: list[dict] = []
+    for food_register in food_registers:
+        food_register['similar_food'] = find_similar_food(food_register['food_type'])
+        food_register['similar_glycemic_index'] = get_glycemic_index(food_register['similar_food'])
+        food_register['all_food_types'] = get_food_types_list(food_type=food_register['food_type'])
+        ret_food_registers.append(food_register)
+    return ret_food_registers
 
     

@@ -73,7 +73,7 @@ def upload():
 
     save_files_to_storage(file_image=file_image, file_json=file_json)
     
-    session['food_types'] = add_similar_food_info_to_food(food_types=food_types)
+    session['food_registers'] = add_similar_food_info_to_food(food_registers=food_types)
     
 
     return redirect(url_for('review_photo', uuid_img=uuid_img))
@@ -104,7 +104,7 @@ def save_files_to_storage(file_image:str, file_json:str):
 def review_photo(uuid_img):    
 
     app_logger.info(f"Viewing photo {uuid_img}")
-    return render_template('review_photo.html', uuid_img=uuid_img, app_logger=app_logger, food_types=session['food_types'])
+    return render_template('review_photo.html', uuid_img=uuid_img, app_logger=app_logger, food_types=session['food_registers'])
 
 
 @app.route('/update_values', methods=['POST'])
@@ -133,6 +133,7 @@ def update_verified(file_uid:str, food_type:str, verified:bool):
 def view_photo(file_uid:str):
     created_at:str = ""
     food_registers: list[dict] = get_food_registers(file_uid=file_uid)
+    food_registers = add_similar_food_info_to_food(food_registers=food_registers)
     if len(food_registers) != 0:
         created_at: str = food_registers[0]['created_at'].strftime('%Y-%m-%d %H:%M:%S')
     return render_template('view_photo.html', uuid_img=file_uid,food_registers=food_registers, created_at=created_at )
