@@ -131,8 +131,11 @@ def update_verified(file_uid:str, food_type:str, verified:bool):
 
 @app.route('/view_photo/<file_uid>', methods=['GET'])
 def view_photo(file_uid:str):
+    created_at:str = ""
     food_registers: list[dict] = get_food_registers(file_uid=file_uid)
-    return render_template('view_photo.html', uuid_img=file_uid,food_registers=food_registers)
+    if len(food_registers) != 0:
+        created_at: str = food_registers[0]['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+    return render_template('view_photo.html', uuid_img=file_uid,food_registers=food_registers, created_at=created_at )
 
 @app.route('/meals', methods=['GET','POST'])
 def meals():

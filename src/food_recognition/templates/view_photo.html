@@ -5,10 +5,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Food Photo {{uuid_img}} at {{created_at}}</title>
     <body>
+
         <p><a href="{{ url_for('index') }}">Take food foto</a></p>
         <p><a href="{{ url_for('meals') }}">Show all captured meals</a></p>
+        <h1>Food register  {{created_at}}</h1>
         <br>
         <img src="/photo/{{uuid_img}}.jpg" alt="Photo">
         <br>
+
+
+
+        <table style="border: 1px solid black; border-collapse: collapse;">
+            <colgroup>
+                <col style="border-right: 1px solid black;">
+                <col style="border-right: 1px solid black;">
+                <col style="border-right: 1px solid black;">
+                <col style="border-right: 1px solid black;">
+            </colgroup>
+            <thead>
+                <tr style="border: 1px solid black;">
+                    <th align="left">Food Type</th>
+                    <th align="right">Glycemic Index</th>
+                    <th align="right">Weight (gr)</th>
+                    <th align="right">Verified</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for food_type_record in food_registers %}
+                <tr>
+                    <td align="left">
+                        {{food_type_record['food_type']}}
+                    </td>
+                    <td align="right">{{food_type_record['glycemic_index']}}</td>
+                    <td align="right">{{ food_type_record['weight_grams'] }}</td>
+                    <td><input type="checkbox" {% if food_type_record['verified'] %}checked{% endif %} disabled/></td>
+                </tr>
+                </tr>
+                {% if loop.index == 1 %}<input type="hidden" name="num_food_types" value="{{loop.length}}" /> {% endif
+                %}
+                {% endfor %}
+            </tbody>
+        </table>
+
+
     </body>
 </html>
