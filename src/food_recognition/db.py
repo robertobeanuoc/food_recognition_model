@@ -114,7 +114,7 @@ def get_food_registers(start_date: datetime.date=None,file_uid: str = None)-> li
     cursor = cnx.cursor()
 
     # Define the SQL query to retrieve all records from the food_table
-    query:str = f"SELECT food_type, glycemic_index, weight_grams, created_at, file_uid, verified FROM food_register where 1=1"
+    query:str = f"SELECT food_type, glycemic_index, weight_grams, created_at, file_uid, verified, uuid FROM food_register where 1=1"
     if file_uid:
         query += f" and file_uid = '{file_uid}'"
     if start_date:
@@ -137,6 +137,7 @@ def get_food_registers(start_date: datetime.date=None,file_uid: str = None)-> li
             'created_at': record[3],
             'file_uid': record[4],
             'verified': record[5],
+            'uuid': record[6],
         }
         records_json.append(record_dict)
     app_logger.info("Records fetched")
@@ -216,16 +217,25 @@ def get_food_types_list(food_type: str="")->list[str]:
     app_logger.info("Records fetched")
     return ",".join(ret_records)
 
-def update_verfied(file_uid:str, food_type:str, verfied:int):
-    cnx:mysql.connector.MySQLConnection = _connect_to_db()
+def update_verfied( verfied:int, uid: str="", file_uid:str="", food_type:str=""):
+
+    filter: str = f" file_uid = '{file_uid}' and food_type = '{food_type}'"
+    if uid == "":
+        if file_uid == "" or food_type == "":
+            error_message = "Either uid or file_uid and food_type must be provided"
+            app_logger.error(error_message)
+            raise Exception(error_message)
+    else:
+        filter: str = f" uid = '{uid}' "
     
+    cnx:mysql.connector.MySQLConnection = _connect_to_db()
     app_logger.info("Connected to the database")
 
     # Create a cursor object to execute SQL queries
     cursor = cnx.cursor()
 
     # Define the SQL query to insert a record into the food_table
-    query:str = f"update food_register set verified = {verfied} where file_uid = '{file_uid}' and food_type = '{food_type}'"
+    query:str = f"update food_register set verified = {verfied} where {filter}"
     app_logger.info(f"Query: {query}")
 
     

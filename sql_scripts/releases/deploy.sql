@@ -22,6 +22,7 @@ END;
 -- Update food_register_update table
 
 ALTER TABLE food_register_update ADD COLUMN uuid CHAR(36) NOT NULL;
+ALTER TABLE food_register_update ADD COLUMN original_food_type nvarchar(100);
 
 UPDATE food_register_update SET uuid = UUID();
 

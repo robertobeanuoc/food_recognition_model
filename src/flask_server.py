@@ -122,10 +122,10 @@ def update_values():
 
     return redirect(url_for('review_photo', uuid_img=uuid_img))
 
-@app.route('/update_verified/<file_uid>/<food_type>/<int:verified>' , methods=['GET','POST'])
-def update_verified(file_uid:str, food_type:str, verified:bool):
-    app_logger.info(f"Updating verified for {food_type} for file uid {file_uid}..")
-    update_verfied(file_uid=file_uid, food_type=food_type, verfied=verified)
+@app.route('/update_verified/<uid>/<int:verified>' , methods=['GET','POST'])
+def update_verified(uid:str, food_type:str, verified:bool):
+    app_logger.info(f"Updating food_register verified for {uid} ..")
+    update_verfied(uid=uid, verfied=verified)
     return redirect(url_for('meals'))
 
 

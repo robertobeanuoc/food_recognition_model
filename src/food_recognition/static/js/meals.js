@@ -1,11 +1,10 @@
 
-function updateVerified(file_uid, food_type, verified) {
-    message = "file_uid=" + file_uid + "&food_type=" + food_type + "&verified=" + verified;
+function updateVerified(uid, verified) {
     let int_verified = 0;
     if (verified) {
         int_verified = 1;
     }
-    const url = `/update_verified/${file_uid}/${food_type}/${int_verified}`;
+    const url = `/update_verified/${uid}/${int_verified}`;
     
     // Remove the extra closing curly brace
     fetch(url, {
