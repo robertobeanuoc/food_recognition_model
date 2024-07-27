@@ -14,9 +14,10 @@
         <br>
 
 
-
+        <form id="form_update" action="{{ url_for('update_values') }}" method="POST">
         <table style="border: 1px solid black; border-collapse: collapse;">
             <colgroup>
+                <col style="border-right: 1px solid black;">
                 <col style="border-right: 1px solid black;">
                 <col style="border-right: 1px solid black;">
                 <col style="border-right: 1px solid black;">
@@ -31,17 +32,25 @@
                     <th align="left">Similar Food Type</th>
                     <th align="left">Glycemic Index</th>
                     <th align="right">Verified</th>
+                    <th align="right">Update</th>
                 </tr>
             </thead>
             <tbody>
                 {% for food_type_record in food_registers %}
                 <tr>
-                    <td align="left">{{food_type_record['food_type']}}</td>
-                    <td align="right">{{food_type_record['glycemic_index']}}</td>
+                    <td align="left">
+                        <select name="food_type_{{ loop.index }}">
+                            {% for food in food_type_record['all_food_types'].split(',') %}
+                            <option value="{{food}}" {% if food==food_type_record['food_type'] %} selected {% endif%}>{{food}}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="hidden" name="uuid_{{loop.index}}" value="{{food_type_record['uuid']}}"</td>
+                    <td align="right"><input type="number" id="glycemic_indes_{{loop.index}}" value="{{food_type_record['glycemic_index']}}"></td>
                     <td align="right">{{ food_type_record['weight_grams'] }}</td>                    
                     <td align="left">{{food_type_record['similar_food']}}</td>
                     <td align="left">{{ food_type_record['similar_glycemic_index'] }}</td>
                     <td><input type="checkbox" {% if food_type_record['verified'] %}checked{% endif %} disabled/></td>                    
+                    <td><button type="submit" form="form_update" value="Update">Update values</button></td> 
                 </tr>
                 </tr>
                 {% if loop.index == 1 %}<input type="hidden" name="num_food_types" value="{{loop.length}}" /> {% endif
@@ -49,6 +58,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        <form id="form_update" action="{{ url_for('update_values') }}" method="POST"></form>
 
 
     </body>
