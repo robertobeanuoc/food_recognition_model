@@ -35,8 +35,7 @@
                         <input type="hidden" name="food_type_id_{{ loop.index }}" value="{{ food_type_record['uuid'] }}" />
                         <select name="food_type_{{ loop.index }}">
                             {% for food in food_type_record['all_food_types'].split(',') %}
-                            <option value="{{food}}" {% if food==food_type_record['food_type'] %} selected {% endif%}>{{
-                                food }}</option>
+                            <option value="{{food}}" {% if food==food_type_record['food_type'] %} selected {% endif%}>{{food}}</option>
                             {% endfor %}
                         </select>
                     </td>
