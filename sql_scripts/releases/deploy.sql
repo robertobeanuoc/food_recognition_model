@@ -1,6 +1,8 @@
 
 -- Update food_register table
 ALTER TABLE food_register ADD COLUMN uuid CHAR(36) NOT NULL;
+ALTER TABLE food_register ADD COLUMN original_food_type nvarchar(100);
+ALTER TABLE food_register ADD COLUMN original_gylcemic_index int;
 
 UPDATE food_register SET uuid = UUID();
 

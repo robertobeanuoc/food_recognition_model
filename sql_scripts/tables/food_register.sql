@@ -4,8 +4,11 @@ CREATE TABLE food_register
     uuid CHAR(36) NOT NULL
     file_uid nvarchar(100),
     created_at datetime,
+    updated_at datetime,
     food_type nvarchar(100),
+    original_food_type nvarchar(100),
     glycemic_index int,
+    original_gylcemic_index int,
     weight_grams int,
     verified boolean,
     PRIMARY KEY (uuid)
