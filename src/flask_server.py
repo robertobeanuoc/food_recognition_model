@@ -7,7 +7,7 @@ import numpy as np
 import os
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
-from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index
+from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register
 from food_recognition.similar_food import add_similar_food_info_to_food
 import json
 import uuid
@@ -72,11 +72,8 @@ def upload():
         f.write(json.dumps(food_types))
 
     save_files_to_storage(file_image=file_image, file_json=file_json)
-    
-    session['food_registers'] = add_similar_food_info_to_food(food_registers=food_types)
-    
-
-    return redirect(url_for('review_photo', uuid_img=uuid_img))
+        
+    return redirect(url_for('view_photo', file_uid=uuid_img))
 
 def save_image(img)->str:
     app_logger.info("Saving the image ..")
@@ -100,13 +97,6 @@ def save_files_to_storage(file_image:str, file_json:str):
         app_logger.error(f"Error copying folder content: {e}")
 
 
-@app.route('/review_photo/<uuid_img>')
-def review_photo(uuid_img):    
-
-    app_logger.info(f"Viewing photo {uuid_img}")
-    return render_template('review_photo.html', uuid_img=uuid_img, app_logger=app_logger, food_types=session['food_registers'])
-
-
 @app.route('/update_values', methods=['POST'])
 def update_values():
     app_logger.info("Updating values ..")
@@ -120,12 +110,15 @@ def update_values():
         weight_grams:int = int(request.form[f'weight_grams_{i}'])
         update_food_register(file_uid=uuid_img, food_type=food_type, glycemic_index=glycemic_index, weight_grams=weight_grams)
 
-    return redirect(url_for('review_photo', uuid_img=uuid_img))
+    return redirect(url_for('view_photo', file_uid=uuid_img))
 
-@app.route('/update_verified/<uuid>/<int:verified>' , methods=['GET','POST'])
-def update_verified(uuid:str, verified:bool):
-    app_logger.info(f"Updating food_register verified for {uuid} ..")
-    update_verfied(uuid=uuid, verfied=verified)
+
+
+@app.route('/update_food_register/<uuid>/<food_type>/<int:glycemic_index>/<int:weight_grams>/<int:verified>', methods=['GET'])
+def api_update_food_register(uuid:str, food_type:str, glycemic_index:int, weight_grams:int, verified:int):
+    app_logger.info(f"Updating food_register for {uuid} ..")
+    update_food_register(uuid=uuid, food_type=food_type, glycemic_index=glycemic_index, weight_grams=weight_grams, verified=verified)
+    #TODO return to the previus page
     return redirect(url_for('meals'))
 
 
