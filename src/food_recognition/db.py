@@ -14,7 +14,23 @@ def insert_food_type(file_uid:str, food_type:str, glycemic_index:int, weight_gra
     cursor = cnx.cursor()
 
     # Define the SQL query to insert a record into the food_table
-    query:str = f"INSERT INTO food_register (file_uid, food_type, glycemic_index, weight_grams, created_at) VALUES ('{file_uid}','{food_type}', {glycemic_index}, {weight_grams}, '{created_at.strftime('%Y-%m-%d %H:%M:%S')}')"
+    query:str = f"""INSERT INTO food_register 
+             (file_uid,
+              food_type,
+              original_food_type,
+              glycemic_index,
+              original_glycemic_index,
+              weight_grams,
+              created_at 
+            ) VALUES ( 
+              '{file_uid}', 
+              '{food_type}', 
+             '{food_type}',               
+               {glycemic_index},
+               {glycemic_index},               
+               {weight_grams}, 
+              '{created_at.strftime('%Y-%m-%d %H:%M:%S')}' 
+            )"""
     app_logger.info(f"Query: {query}")
 
     
@@ -31,7 +47,7 @@ def insert_food_type(file_uid:str, food_type:str, glycemic_index:int, weight_gra
     cnx.close()
     app_logger.info("Connection closed")
 
-def insert_food_type_update(file_uid:str, food_type:str, glycemic_index:int, weight_grams:int, created_at:datetime.datetime=datetime.datetime.now()):
+def update_food_register(file_uid:str, food_type:str, glycemic_index:int, weight_grams:int, created_at:datetime.datetime=datetime.datetime.now()):
 
     cnx:mysql.connector.MySQLConnection = _connect_to_db()
     
@@ -41,7 +57,10 @@ def insert_food_type_update(file_uid:str, food_type:str, glycemic_index:int, wei
     cursor = cnx.cursor()
 
     # Define the SQL query to insert a record into the food_table
-    query:str = f"INSERT INTO food_register_update (file_uid, food_type, glycemic_index, weight_grams, created_at) VALUES ('{file_uid}','{food_type}', {glycemic_index}, {weight_grams}, '{created_at.strftime('%Y-%m-%d %H:%M:%S')}')"
+
+    query: str = f" UPDATE food_register  set glycemic_index = {glycemic_index}, weight_grams = {weight_grams} where uuid = '{uuid}'" 
+    #query:str = f"INSERT INTO food_register_update (file_uid, food_type, glycemic_index, weight_grams, created_at) VALUES ('{file_uid}','{food_type}', {glycemic_index}, {weight_grams}, '{created_at.strftime('%Y-%m-%d %H:%M:%S')}')"
+
     app_logger.info(f"Query: {query}")
 
     
@@ -69,7 +88,7 @@ def _connect_to_db()-> mysql.connector.MySQLConnection:
     return cnx
 
 
-def get_food_types()-> list[dict]:
+def get_food_types(food_type: str = "")-> list[dict]:
     cnx: mysql.connector.MySQLConnection = _connect_to_db()
     app_logger.info("Connected to the database")
 
@@ -77,7 +96,10 @@ def get_food_types()-> list[dict]:
     cursor = cnx.cursor()
 
     # Define the SQL query to retrieve all records from the food_table
-    query:str = "SELECT food_type, food_type_es, glycemic_index FROM glycemic_index order by food_type"
+    query:str = "SELECT food_type, food_type_es, glycemic_index FROM glycemic_index "
+    if food_type:
+        query = query + f"where food_type = '{food_type}' "
+    query = query + "order by food_type"
     app_logger.info(f"Query: {query}")
 
     # Execute the query
@@ -217,16 +239,16 @@ def get_food_types_list(food_type: str="")->list[str]:
     app_logger.info("Records fetched")
     return ",".join(ret_records)
 
-def update_verfied( verfied:int, uid: str="", file_uid:str="", food_type:str=""):
+def update_verfied( verfied:int, uuid: str="", file_uid:str="", food_type:str=""):
 
     filter: str = f" file_uid = '{file_uid}' and food_type = '{food_type}'"
-    if uid == "":
+    if uuid == "":
         if file_uid == "" or food_type == "":
             error_message = "Either uid or file_uid and food_type must be provided"
             app_logger.error(error_message)
             raise Exception(error_message)
     else:
-        filter: str = f" uid = '{uid}' "
+        filter: str = f" uuid = '{uuid}' "
     
     cnx:mysql.connector.MySQLConnection = _connect_to_db()
     app_logger.info("Connected to the database")

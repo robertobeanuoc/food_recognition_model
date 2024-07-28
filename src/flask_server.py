@@ -7,7 +7,7 @@ import numpy as np
 import os
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
-from food_recognition.db import get_glycemic_index, insert_food_type, insert_food_type_update, update_verfied, get_food_registers
+from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index
 from food_recognition.similar_food import add_similar_food_info_to_food
 import json
 import uuid
@@ -118,14 +118,14 @@ def update_values():
         food_type = request.form[f'food_type_{i}']
         glycemic_index:int =  get_glycemic_index(food_type=food_type)
         weight_grams:int = int(request.form[f'weight_grams_{i}'])
-        insert_food_type_update(file_uid=uuid_img, food_type=food_type, glycemic_index=glycemic_index, weight_grams=weight_grams)
+        update_food_register(file_uid=uuid_img, food_type=food_type, glycemic_index=glycemic_index, weight_grams=weight_grams)
 
     return redirect(url_for('review_photo', uuid_img=uuid_img))
 
-@app.route('/update_verified/<uid>/<int:verified>' , methods=['GET','POST'])
-def update_verified(uid:str, food_type:str, verified:bool):
-    app_logger.info(f"Updating food_register verified for {uid} ..")
-    update_verfied(uid=uid, verfied=verified)
+@app.route('/update_verified/<uuid>/<int:verified>' , methods=['GET','POST'])
+def update_verified(uuid:str, verified:bool):
+    app_logger.info(f"Updating food_register verified for {uuid} ..")
+    update_verfied(uuid=uuid, verfied=verified)
     return redirect(url_for('meals'))
 
 
@@ -150,6 +150,12 @@ def meals():
         filter_start_date = filter_start_date - datetime.timedelta(days=int(os.getenv("DEFAULT_DAYS")))
     food_registers: list[dict] = get_food_registers(start_date=filter_start_date) 
     return render_template('meals.html', food_registers=food_registers, start_date=filter_start_date)
+
+
+@app.route('/glycemic_index/<food_type>', methods=['GET'])
+def glycemic_index(food_type:str):
+    glycemic_index:int = get_glycemic_index(food_type=food_type)
+    return str(glycemic_index)
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5010, ssl_context='adhoc')
