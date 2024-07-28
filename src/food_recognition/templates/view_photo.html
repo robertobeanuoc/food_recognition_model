@@ -4,19 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Food Photo {{uuid_img}} at {{created_at}}</title>
-    <body>
+<body>
 
-        <p><a href="{{ url_for('index') }}">Take food foto</a></p>
-        <p><a href="{{ url_for('meals') }}">Show all captured meals</a></p>
-        <h1>Food register  {{created_at}}</h1>
-        <br>
-        <img src="/photo/{{uuid_img}}.jpg" alt="Photo">
-        <br>
+    <p><a href="{{ url_for('index') }}">Take food foto</a></p>
+    <p><a href="{{ url_for('meals') }}">Show all captured meals</a></p>
+    <h1>Food register {{created_at}}</h1>
+    <br>
+    <img src="/photo/{{uuid_img}}.jpg" alt="Photo">
+    <br>
 
 
-
-        <table style="border: 1px solid black; border-collapse: collapse;">
+        <table style="border: 1px solid black; border-collapse: collapse;" id="table_values">
+            <script src="{{ url_for('static', filename='js/view_photo.js') }}"></script>
+            <script src="{{ url_for('static', filename='js/food_register.js') }}"></script>
             <colgroup>
+                <col style="border-right: 1px solid black;">
                 <col style="border-right: 1px solid black;">
                 <col style="border-right: 1px solid black;">
                 <col style="border-right: 1px solid black;">
@@ -31,25 +33,37 @@
                     <th align="left">Similar Food Type</th>
                     <th align="left">Glycemic Index</th>
                     <th align="right">Verified</th>
+                    <th align="right">Update</th>
                 </tr>
             </thead>
             <tbody>
-                {% for food_type_record in food_registers %}
+                {% for food_register in food_registers %}
                 <tr>
-                    <td align="left">{{food_type_record['food_type']}}</td>
-                    <td align="right">{{food_type_record['glycemic_index']}}</td>
-                    <td align="right">{{ food_type_record['weight_grams'] }}</td>                    
-                    <td align="left">{{food_type_record['similar_food']}}</td>
-                    <td align="left">{{ food_type_record['similar_glycemic_index'] }}</td>
-                    <td><input type="checkbox" {% if food_type_record['verified'] %}checked{% endif %} disabled/></td>                    
-                </tr>
+                    <td align="left">
+                        <select id="food_type_{{ loop.index }}" onchange="updateGlycemicIndex({{ loop.index }})">
+                            {% for food in food_register['all_food_types'].split(',') %}
+                            <option value="{{food}}" {% if food==food_register['food_type'] %} selected {% endif%}>
+                                {{food}}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="hidden" id="uuid_{{loop.index}}" value="{{food_register['uuid']}}"/> </td>
+                    <td align="right"><input type="number" id="glycemic_index_{{loop.index}}"
+                            value="{{food_register['glycemic_index']}}"></td>
+                    <td align="right"><input type="number" id="weight_grams_{{loop.index}}" value="{{food_register['weight_grams']}}"/></td>
+                    <td align="left">{{food_register['similar_food']}}</td>
+                    <td align="left">{{ food_register['similar_glycemic_index'] }}</td>
+                    <td><input id="verified_{{loop.index}}" type="checkbox" {% if food_register["verified"] %} checked {% endif %}/></td>
+                    <td>
+                        <button id="update_food_register{{loop.index}}" onclick="updateFoodRegister({{loop.index}})">
+                            <img src="{{ url_for('static', filename='img/save.png') }}" width="20em" alt="Save">
+                        </button>
+                    </td>
                 </tr>
                 {% if loop.index == 1 %}<input type="hidden" name="num_food_types" value="{{loop.length}}" /> {% endif
                 %}
                 {% endfor %}
             </tbody>
         </table>
+</body>
 
-
-    </body>
 </html>
