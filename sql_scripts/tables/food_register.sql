@@ -8,7 +8,7 @@ CREATE TABLE food_register
     food_type nvarchar(100),
     original_food_type nvarchar(100),
     glycemic_index int,
-    original_gylcemic_index int,
+    original_glycemic_index int,
     weight_grams int,
     verified boolean,
     PRIMARY KEY (uuid)

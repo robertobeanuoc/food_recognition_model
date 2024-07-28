@@ -2,7 +2,7 @@
 -- Update food_register table
 ALTER TABLE food_register ADD COLUMN uuid CHAR(36) NOT NULL;
 ALTER TABLE food_register ADD COLUMN original_food_type nvarchar(100);
-ALTER TABLE food_register ADD COLUMN original_gylcemic_index int;
+ALTER TABLE food_register ADD COLUMN original_glycemic_index int;
 ALTER TABLE food_register ADD COLUMN updated_at datetime;
 
 UPDATE food_register SET uuid = UUID();
@@ -23,22 +23,4 @@ BEGIN
 END;
 
 -- Update food_register_update table
-
-ALTER TABLE food_register_update ADD COLUMN uuid CHAR(36) NOT NULL;
-ALTER TABLE food_register_update ADD COLUMN original_food_type nvarchar(100);
-
-UPDATE food_register_update SET uuid = UUID();
-
-ALTER TABLE food_register_update DROP PRIMARY KEY;
-
-ALTER TABLE food_register_update ADD PRIMARY KEY (uuid);
-
-CREATE UNIQUE INDEX idx_food_register_update ON food_register_update (file_uid, original_food_type);
-
-CREATE TRIGGER before_insert_food_register_update
-BEFORE INSERT ON food_register_update
-FOR EACH ROW
-BEGIN
-    SET NEW.uuid = UUID();
-END;
-
+DROP TABLE IF EXISTS food_register_update;
