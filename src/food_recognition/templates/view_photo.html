@@ -1,11 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Food Photo {{uuid_img}} at {{created_at}}</title>
-
 <body>
 
     <p><a href="{{ url_for('index') }}">Take food foto</a></p>
@@ -16,7 +14,6 @@
     <br>
 
 
-    <form id="form_update_table" action="{{ url_for('update_values') }}" method="POST">
         <table style="border: 1px solid black; border-collapse: collapse;" id="table_values">
             <script src="{{ url_for('static', filename='js/view_photo.js') }}"></script>
             <script src="{{ url_for('static', filename='js/food_register.js') }}"></script>
@@ -49,21 +46,24 @@
                                 {{food}}</option>
                             {% endfor %}
                         </select>
-                        <input type="hidden" name="uuid_{{loop.index}}" value="{{food_register['uuid']}}" </td>
+                        <input type="hidden" id="uuid_{{loop.index}}" value="{{food_register['uuid']}}"/> </td>
                     <td align="right"><input type="number" id="glycemic_index_{{loop.index}}"
                             value="{{food_register['glycemic_index']}}"></td>
-                    <td align="right">{{ food_register['weight_grams'] }}</td>
+                    <td align="right"><input type="number" id="weight_grams_{{loop.index}}" value="{{food_register['weight_grams']}}"/></td>
                     <td align="left">{{food_register['similar_food']}}</td>
                     <td align="left">{{ food_register['similar_glycemic_index'] }}</td>
-                    <td><input type="checkbox" {% if food_register["verified"] %}checked{% endif %} onclick="updateVerified('{{food_register["uuid"]}}', '{{food_register["food_type"]}}', this.checked)" /></td>
-                    <td><button type="submit" form="form_update" value="Update">Update values</button></td>
+                    <td><input id="verified_{{loop.index}}" type="checkbox" {% if food_register["verified"] %} checked {% endif %}/></td>
+                    <td>
+                        <button id="update_food_register{{loop.index}}" onclick="updateFoodRegister({{loop.index}})">
+                            <img src="{{ url_for('static', filename='img/save.png') }}" width="20em" alt="Save">
+                        </button>
+                    </td>
                 </tr>
                 {% if loop.index == 1 %}<input type="hidden" name="num_food_types" value="{{loop.length}}" /> {% endif
                 %}
                 {% endfor %}
             </tbody>
         </table>
-    </form>
 </body>
 
 </html>
