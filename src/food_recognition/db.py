@@ -47,7 +47,7 @@ def insert_food_type(file_uid:str, food_type:str, glycemic_index:int, weight_gra
     cnx.close()
     app_logger.info("Connection closed")
 
-def update_food_register(file_uid:str, food_type:str, glycemic_index:int, weight_grams:int, created_at:datetime.datetime=datetime.datetime.now()):
+def update_food_register(uuid:str, food_type:str=None, glycemic_index:int=None, weight_grams:int=None, verified: int = None, updated_at:datetime.datetime=datetime.datetime.now()):
 
     cnx:mysql.connector.MySQLConnection = _connect_to_db()
     
@@ -58,8 +58,17 @@ def update_food_register(file_uid:str, food_type:str, glycemic_index:int, weight
 
     # Define the SQL query to insert a record into the food_table
 
-    query: str = f" UPDATE food_register  set glycemic_index = {glycemic_index}, weight_grams = {weight_grams} where uuid = '{uuid}'" 
-    #query:str = f"INSERT INTO food_register_update (file_uid, food_type, glycemic_index, weight_grams, created_at) VALUES ('{file_uid}','{food_type}', {glycemic_index}, {weight_grams}, '{created_at.strftime('%Y-%m-%d %H:%M:%S')}')"
+    query: str = f" UPDATE food_register  set updated_at='{updated_at.strftime('%Y-%m-%d %H:%M:%S')}'"
+    if food_type != None and food_type != "":
+        query = query + f", food_type = '{food_type}'"
+    if glycemic_index != None:
+        query = query + f", glycemic_index = {glycemic_index}"
+    if weight_grams != None:
+        query = query + f", weight_grams = {weight_grams}"
+    if verified != None:
+        query = query + f", verified = {verified}"
+    query = query + f" WHERE uuid = '{uuid}'" 
+
 
     app_logger.info(f"Query: {query}")
 
