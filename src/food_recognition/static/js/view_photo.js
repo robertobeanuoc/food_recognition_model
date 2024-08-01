@@ -1,6 +1,7 @@
 function updateGlycemicIndex(index) {
 
     var foodTypeInput = document.getElementById('food_type_' + index);
+    document.getElementById('updated_' + index).value = '';
     console.log('foodType called with index:', foodTypeInput);
 
     var url = '/glycemic_index/' + foodTypeInput.value;
