@@ -23,6 +23,9 @@ function updateFoodRegister(index)
     var uuid = document.getElementById('uuid_' + index).value;
     var verified = document.getElementById('verified_' + index).checked ? 1 : 0;
 
+    var updated = document.getElementById('updated_' + index);
+    updated.value = '';
+
     console.log('foodType:', foodType, "glycemicIndex:", glycemicIndex, "uuid:", uuid);
 
     const url = '/update_food_register/'+ uuid + "/" +  foodType + '/' + glycemicIndex + "/" + weightGrams + "/" + verified;
