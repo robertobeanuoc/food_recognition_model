@@ -39,7 +39,6 @@
                 <th align="right">Glycemic Index</th>
                 <th align="right">Weight (gr)</th>
                 <th align="left">Picture</th>
-                <th align="left">Verified</th>
             </tr>
             {%for food_register in food_registers%}
             <tr style="border-bottom: 1px solid black;">
@@ -51,7 +50,6 @@
                         <img src="/photo/{{food_register['file_uid']}}.jpg" width="100" height="100" />
                     </a>
                 </td>
-                <td><input type="checkbox" {% if food_register["verified"] %}checked{% endif %} onclick="updateVerified('{{food_register["uuid"]}}', '{{food_register["food_type"]}}', this.checked)" /></td>
             </tr>
             </tr>
             {%endfor%}
