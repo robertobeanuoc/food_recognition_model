@@ -14,6 +14,8 @@ import uuid
 
 from flask_session import Session
 
+from food_recognition.validate_parameters import validate_food_type, validate_uuid
+
 
 app = Flask(__name__,static_folder='food_recognition/static', template_folder='food_recognition/templates')
 app.secret_key = os.getenv('SECRET_KEY')
@@ -116,6 +118,9 @@ def update_values():
 
 @app.route('/update_food_register/<uuid>/<food_type>/<int:glycemic_index>/<int:weight_grams>/<int:verified>', methods=['GET'])
 def api_update_food_register(uuid:str, food_type:str, glycemic_index:int, weight_grams:int, verified:int):
+
+    validate_uuid(uuid)
+    validate_food_type(food_type)
     app_logger.info(f"Updating food_register for {uuid} ..")
     update_food_register(uuid=uuid, food_type=food_type, glycemic_index=glycemic_index, weight_grams=weight_grams, verified=verified)
     #TODO return to the previus page
@@ -125,6 +130,7 @@ def api_update_food_register(uuid:str, food_type:str, glycemic_index:int, weight
 @app.route('/view_photo/<file_uid>', methods=['GET'])
 def view_photo(file_uid:str):
     created_at:str = ""
+    validate_uuid(file_uid)
     food_registers: list[dict] = get_food_registers(file_uid=file_uid)
     food_registers = add_similar_food_info_to_food(food_registers=food_registers)
     if len(food_registers) != 0:
