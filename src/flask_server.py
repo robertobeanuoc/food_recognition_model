@@ -130,6 +130,7 @@ def api_update_food_register(uuid:str, food_type:str, glycemic_index:int, weight
 @app.route('/view_photo/<file_uid>', methods=['GET'])
 def view_photo(file_uid:str):
     created_at:str = ""
+    validate_uuid(file_uid)
     food_registers: list[dict] = get_food_registers(file_uid=file_uid)
     food_registers = add_similar_food_info_to_food(food_registers=food_registers)
     if len(food_registers) != 0:
