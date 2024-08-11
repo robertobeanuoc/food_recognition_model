@@ -3,10 +3,10 @@ import re
 import datetime
 import typing
 BASE_URL:str = "https://www.mywellness.com"
-TOKEN_URL:str = f"{BASE_URL}/lasarenas/User/Login/"
-TRAINING_URL:str = f"{BASE_URL}/lasarenas/Training/"
-DATE_RANGE_URL:str = f"{BASE_URL}/lasarenas/Training/LastPerformedWorkoutSession"
-EXERCISE_DETAIL_URL:str = f"{BASE_URL}/lasarenas/Training/PerformedExerciseDetail"
+TOKEN_URL:str = f"{BASE_URL}/cloud/User/Login/"
+TRAINING_URL:str = f"{BASE_URL}/cloud/Training/"
+DATE_RANGE_URL:str = f"{BASE_URL}/cloud/Training/LastPerformedWorkoutSession"
+EXERCISE_DETAIL_URL:str = f"{BASE_URL}/cloud/Training/PerformedExerciseDetail"
 REGULAR_EXPRESION_TOKEN: re.Pattern = r'\\\"token\\\":\\\"([A-Za-z0-9._-]+)\\\"'
 REGULAR_EXPRESION_ID: re.Pattern = r'\\\"id\\\":\\\"([A-Za-z0-9._-]+)\\\"'
 REGULAR_EXPRESION_ID_CR: re.Pattern = r'id="([0-9]+)"'
