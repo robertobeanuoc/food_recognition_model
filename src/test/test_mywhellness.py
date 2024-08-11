@@ -22,14 +22,15 @@ with open("/Users/rbean/temp/trainings.html", "w") as file:
 training_urls: list[str]
 training_id_crs: list[str]
 training_dates: list[str]
+data_positions: list[str]
 
-training_urls, training_id_crs, training_dates = my_wellness.get_trainning_urls_and_id_cr(token=token, app_id=app_id, start_date=start_date, end_date=end_date)
+training_urls, training_id_crs, training_dates, data_positions = my_wellness.get_trainning_urls_and_id_cr(token=token, app_id=app_id, start_date=start_date, end_date=end_date)
 
 print(training_urls)
 i:int = 0
 for trainging_url in training_urls:
-    training: str = my_wellness.get_training(id_cr=training_id_crs[i], position=i+1, day_open_session=training_dates[i])
+    training: dict = my_wellness.get_training(id_cr=training_id_crs[i], position=data_positions[i], day_open_session=training_dates[i])
     file_name: str = f"/Users/rbean/temp/training_{i}.html"
     with open(file_name, "w") as file:
-        file.write(training)
+        file.write(f"{training}")
     i = i + 1

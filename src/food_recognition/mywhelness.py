@@ -2,6 +2,7 @@ import requests
 import re
 import datetime
 import typing
+from lxml import html 
 BASE_URL:str = "https://www.mywellness.com"
 TOKEN_URL:str = f"{BASE_URL}/cloud/User/Login/"
 TRAINING_URL:str = f"{BASE_URL}/cloud/Training/"
@@ -12,6 +13,7 @@ REGULAR_EXPRESION_ID: re.Pattern = r'\\\"id\\\":\\\"([A-Za-z0-9._-]+)\\\"'
 REGULAR_EXPRESION_ID_CR: re.Pattern = r'id="([0-9]+)"'
 REGULAR_EXPRESION_DATE: re.Pattern = r'20\d{6}'
 REGULAR_EXPRESION_TRAINING: re.Pattern = r'https:\/\/[A-Za-z0-9.-]+\.[A-Za-z]{2,4}\/[^\s]*'
+REGULAR_EXPRESSION_DATA_POSITION: re.Pattern = r'data\-position=\"([0-9]+)\"'
 
 class MyWellness:
     def __init__(self) -> None:
@@ -71,15 +73,21 @@ class MyWellness:
 
         return ret_dates
     
-    def get_trainning_urls_and_id_cr(self, token:str, app_id: str,start_date:datetime.date, end_date:datetime.date)->typing.Tuple[list[str],list[str],list[str]]:
+    def _get_data_position(self, response_text: str)->list[str]:
+        ret_positions: list[str] = re.findall(REGULAR_EXPRESSION_DATA_POSITION, response_text)
+        return ret_positions
+    
+    def get_trainning_urls_and_id_cr(self, token:str, app_id: str,start_date:datetime.date, end_date:datetime.date)->typing.Tuple[list[str],list[str],list[str],list[str]]:
 
         response_text: str = self._get_trainnings(token=token, app_id=app_id, start_date=start_date, end_date=end_date)
         ret_training_urls: list[str] = re.findall(REGULAR_EXPRESION_TRAINING, response_text)
         ret_idr_crs: list[str] = self._getids_cr(response_text)
         ret_dates: list[str] = self._get_dates(response_text)
-        return ret_training_urls, ret_idr_crs, ret_dates
+        ret_positions: list[str] = self._get_data_position(response_text)
+        return ret_training_urls, ret_idr_crs, ret_dates,ret_positions
     
-    def get_training(self,id_cr: str, position:int, day_open_session:str)->dict[str, str]:
+
+    def _get_trainning_content(self,id_cr: str, position:int, day_open_session:str)->str:
         header_info:dict = {
             "idCR": id_cr,
             "position": position,
@@ -88,3 +96,23 @@ class MyWellness:
         }
         response: requests.Request = self.session.get(EXERCISE_DETAIL_URL,data=header_info)
         return response.text
+
+
+    def get_training(self,id_cr: str, position:int, day_open_session:str)->dict[str, str]:
+        training: str = self._get_trainning_content(id_cr=id_cr, position=position, day_open_session=day_open_session)
+        training_parsed: dict = html.fromstring(training)
+        table:dict  = training_parsed.xpath('//table[@class="exercise-table"]')
+        ret_training: dict[str, str] = {}
+        if table:
+            rows = table[0].xpath('.//tr')
+            for row in rows:
+                th_elements = row.xpath('.//th')
+                td_elements = row.xpath('.//td')
+                # ret_training[th.text_content()] = td.text_content()
+                ret_training[th_elements[0].text_content()] = td_elements[0].text_content()
+                # th_values.extend([th.text_content() for th in th_elements])
+                # td_values.extend([td.text_content() for td in td_elements])
+        else:
+            raise Exception("Table not found")
+
+        return ret_training
