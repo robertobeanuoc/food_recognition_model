@@ -7,4 +7,3 @@ pyopenssl>=24.0
 mysql-connector-python>=8.0
 Jinja2>=3.0
 Flask-Session>=0.8
-lxml>=4.6
