@@ -1,7 +1,16 @@
 import mysql.connector
 import datetime
 import os
+import pytz
 from food_recognition.utils import app_logger
+
+ENV_VAR_DB_TZ_DATES: str = os.getenv("DB_TZ_DATES", "UTC")
+
+
+def convert_utc_to_db_datetime(utc_datetime: datetime.datetime) -> datetime.datetime:
+    tz = pytz.timezone(ENV_VAR_DB_TZ_DATES)
+    ret_db_datetime: datetime.datetime = utc_datetime.astimezone(tz)
+    return ret_db_datetime
 
 
 def insert_food_type(
@@ -12,7 +21,7 @@ def insert_food_type(
     created_at: datetime.datetime = None,
 ):
     if created_at is None:
-        created_at = datetime.datetime.now()
+        created_at = convert_utc_to_db_datetime(datetime.datetime.now(datetime.UTC))
 
     cnx: mysql.connector.MySQLConnection = _connect_to_db()
 
