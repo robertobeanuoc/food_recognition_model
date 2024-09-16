@@ -22,7 +22,6 @@ def insert_food_type(
 ):
     if created_at is None:
         created_at = convert_utc_to_db_datetime(datetime.datetime.now(tz=pytz.utc))
-
     cnx: mysql.connector.MySQLConnection = _connect_to_db()
 
     app_logger.info("Connected to the database")
