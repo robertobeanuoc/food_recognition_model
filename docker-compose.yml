@@ -12,12 +12,15 @@ services:
       SECRET_KEY: ${SECRET_KEY:-changeme}
       PHOTO_FOLDER: /photos
       DEFAULT_DAYS: ${DEFAULT_DAYS:-30}
-      # Configure these to point to your existing MySQL instance
-      MYSQL_HOST: ${MYSQL_HOST:-127.0.0.1}
-      MYSQL_PORT: ${MYSQL_PORT:-3306}
-      MYSQL_USER: ${MYSQL_USER:-root}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-food_db}
+      # Database configuration (the app reads DB_HOST/DB_USER/DB_PASSWORD/DB_NAME)
+      DB_HOST: ${DB_HOST:-127.0.0.1}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+      DB_NAME: ${DB_NAME:-food_db}
+      # Optional: timezone for DB datetime conversions and OpenAI wait time
+      DB_TZ_DATES: ${DB_TZ_DATES:-UTC}
+      WAIT_TIME_OPEANAI_API: ${WAIT_TIME_OPEANAI_API:-5}
     volumes:
       - ./src/food_recognition/static/uploads:/app/food_recognition/static/uploads
       - ./photos:/photos

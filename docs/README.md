@@ -45,13 +45,13 @@ docker compose up --build
 2. The Flask app will be available at http://localhost:5010
 
 Notes on the Docker setup
-- This compose file no longer provisions a MySQL server. Configure `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, and `MYSQL_DATABASE` in the environment to point the app at your existing database.
+ - This compose file no longer provisions a MySQL server. Configure `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` in the environment to point the app at your existing database.
 - Uploads are persisted via `./src/food_recognition/static/uploads` mapped into the container and copied to `PHOTO_FOLDER` when images are processed.
 
 Applying the SQL schema
 - If you need to initialize your database schema, run the SQL files in `sql_scripts/` against your existing MySQL instance (for example using `mysql` CLI or a GUI tool). Example:
 ```bash
-mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE < sql_scripts/tables/food_register.sql
+mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < sql_scripts/tables/food_register.sql
 ```
 
 API / Web routes (summary)
@@ -67,4 +67,4 @@ Tests
 Further work / recommendations
 - Add unit tests around `food_classification` and `similar_food` logic.
 - Lock dependency versions (pin exact versions) for reproducible builds.
-- The Docker image serves the app using `uvicorn` via an ASGI wrapper (`asgiref.wsgi.WsgiToAsgi`).
+ - The Dockerfile runs the Flask app directly with `python flask_server.py` in the container (development mode). For production, consider running with a WSGI/ASGI server.
