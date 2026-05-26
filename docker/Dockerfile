@@ -23,5 +23,5 @@ COPY src/ /app/
 ENV FLASK_APP=flask_server.py
 EXPOSE 5010
 
-# Serve the Flask app wrapped as ASGI using uvicorn
-CMD ["uvicorn", "asgi_app:asgi_app", "--host", "0.0.0.0", "--port", "5010"]
+# Run the Flask app directly with Python (development mode)
+CMD ["python", "flask_server.py"]
