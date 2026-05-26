@@ -12,28 +12,14 @@ services:
       SECRET_KEY: ${SECRET_KEY:-changeme}
       PHOTO_FOLDER: /photos
       DEFAULT_DAYS: ${DEFAULT_DAYS:-30}
-      MYSQL_HOST: db
-      MYSQL_PORT: 3306
+      # Configure these to point to your existing MySQL instance
+      MYSQL_HOST: ${MYSQL_HOST:-127.0.0.1}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
       MYSQL_USER: ${MYSQL_USER:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-food_db}
-    depends_on:
-      - db
     volumes:
       - ./src/food_recognition/static/uploads:/app/food_recognition/static/uploads
       - ./photos:/photos
 
-  db:
-    image: mysql:8.0
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-password}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-food_db}
-      MYSQL_USER: ${MYSQL_USER:-user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
-    volumes:
-      - db_data:/var/lib/mysql
-      - ./sql_scripts:/docker-entrypoint-initdb.d
-
-volumes:
-  db_data:
+volumes: {}

@@ -45,8 +45,14 @@ docker compose up --build
 2. The Flask app will be available at http://localhost:5010
 
 Notes on the Docker setup
-- The MySQL service in `docker-compose.yml` uses `./sql_scripts` mounted to `/docker-entrypoint-initdb.d` so schema/release scripts can be applied on first startup.
+- This compose file no longer provisions a MySQL server. Configure `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, and `MYSQL_DATABASE` in the environment to point the app at your existing database.
 - Uploads are persisted via `./src/food_recognition/static/uploads` mapped into the container and copied to `PHOTO_FOLDER` when images are processed.
+
+Applying the SQL schema
+- If you need to initialize your database schema, run the SQL files in `sql_scripts/` against your existing MySQL instance (for example using `mysql` CLI or a GUI tool). Example:
+```bash
+mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE < sql_scripts/tables/food_register.sql
+```
 
 API / Web routes (summary)
 - `GET /` — index page

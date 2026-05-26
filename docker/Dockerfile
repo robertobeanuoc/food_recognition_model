@@ -5,7 +5,7 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# System deps for OpenCV and MySQL client
+# System deps for OpenCV
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libgl1 \
@@ -13,7 +13,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsm6 \
     libxrender1 \
     libxext6 \
-    default-libmysqlclient-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY src/requirements.txt /app/requirements.txt
