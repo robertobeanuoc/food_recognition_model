@@ -14,15 +14,10 @@ CREATE TABLE IF NOT EXISTS food_register (
 
 CREATE UNIQUE INDEX idx_file_food ON food_register (file_uid, food_type);
 
-DELIMITER //
+DROP TRIGGER IF EXISTS before_insert_food_registers;
+
 CREATE TRIGGER before_insert_food_registers
 BEFORE INSERT ON food_register
 FOR EACH ROW
-BEGIN
-    IF NEW.uuid IS NULL OR NEW.uuid = '' THEN
-        SET NEW.uuid = UUID();
-    END IF;
-END
-//
-DELIMITER ;
+SET NEW.uuid = COALESCE(NULLIF(NEW.uuid, ''), UUID());
 
