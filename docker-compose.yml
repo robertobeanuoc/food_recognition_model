@@ -17,7 +17,7 @@ services:
       DB_PORT: ${DB_PORT:-3306}
       DB_USER: ${DB_USER:-root}
       DB_PASSWORD: ${DB_PASSWORD:-password}
-      DB_NAME: ${DB_NAME:-food_db}
+      DB_NAME: ${DB_NAME:-food_recognition}
       # Optional: timezone for DB datetime conversions and OpenAI wait time
       DB_TZ_DATES: ${DB_TZ_DATES:-UTC}
       WAIT_TIME_OPEANAI_API: ${WAIT_TIME_OPEANAI_API:-5}
