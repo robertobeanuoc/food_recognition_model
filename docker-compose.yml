@@ -23,6 +23,6 @@ services:
       WAIT_TIME_OPEANAI_API: ${WAIT_TIME_OPEANAI_API:-5}
     volumes:
       - ./src/food_recognition/static/uploads:/app/food_recognition/static/uploads
-      - ./photos:/photos
+      - /mnt/naslr_home/App_Data/Food_Recognition:/photos
 
 volumes: {}
