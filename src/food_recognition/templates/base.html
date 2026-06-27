@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}NutriScan{% endblock %}</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <!-- Inter font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- App styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+  <!-- ── Navigation ────────────────────────────────────────────── -->
+  <nav class="navbar navbar-expand-lg app-navbar sticky-top">
+    <div class="container">
+
+      <a class="navbar-brand" href="{{ url_for('index') }}">
+        <i class="bi bi-leaf-fill me-2" style="color:#4ade80"></i>Nutri<span class="brand-accent">Scan</span>
+      </a>
+
+      <button class="navbar-toggler border-0 shadow-none" type="button"
+              data-bs-toggle="collapse" data-bs-target="#mainNav"
+              aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="mainNav">
+        <ul class="navbar-nav ms-auto gap-1 py-2 py-lg-0">
+          <li class="nav-item">
+            <a class="nav-link {% block nav_capture %}{% endblock %}" href="{{ url_for('index') }}">
+              <i class="bi bi-camera me-1"></i>Capture
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% block nav_meals %}{% endblock %}" href="{{ url_for('meals') }}">
+              <i class="bi bi-journal-text me-1"></i>Meals
+            </a>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+  </nav>
+  <!-- ── End Navigation ────────────────────────────────────────── -->
+
+  <main class="py-4 py-md-5">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Bootstrap JS bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  {% block scripts %}{% endblock %}
+
+</body>
+</html>

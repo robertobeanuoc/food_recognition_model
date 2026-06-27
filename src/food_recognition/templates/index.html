@@ -1,52 +1,61 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Identify carbohidrat foods</title> 
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
+{% extends "base.html" %}
+{% block title %}NutriScan – Capture Food{% endblock %}
+{% block nav_capture %}active{% endblock %}
 
-        video, canvas {
-            max-width: 100%;
-            height: auto;
-        }
+{% block content %}
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-8 col-lg-6">
 
-        #but {
-            font-size: 1em;
-            padding: 10px;
-            margin-top: 20px;
-        }
+      <!-- Page heading -->
+      <div class="page-heading mb-3">
+        <h1>Capture a meal</h1>
+        <p class="text-muted">Point the camera at your food and press <strong>Snap Photo</strong> to analyse it.</p>
+      </div>
 
-        @media (min-width: 768px) {
-            #but {
-                font-size: 1.2em;
-                padding: 15px;
-                margin-top: 20px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <h1>Take a food photo</h1>
-    <div>
-        <video id="video" autoplay playsinline></video>
-        <canvas id="canvas" style="display: none;"></canvas>
-        <form id="upload-form" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+      <!-- Camera card -->
+      <div class="card overflow-hidden">
+
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="camera-status-dot"></span>
+          <span class="section-title ms-1">Live Camera</span>
+        </div>
+
+        <!-- Video viewport -->
+        <div class="camera-viewport">
+          <video id="video" autoplay playsinline></video>
+          <canvas id="canvas" style="display:none;"></canvas>
+        </div>
+
+        <!-- Controls -->
+        <div class="card-body bg-white">
+          <form id="upload-form" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
             <input type="hidden" name="file" id="file">
-        </form>   
-        <br/> 
-        <button  class="but" id="snap">Snap Photo</button>   
-        <button class="but" id="stop_start_video">Stop Video</button>   
-    <p id = "result">
-    <a href="{{ url_for('meals') }}">Show all captured meals</a>
-    </p>
-    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
-</body>
-</html>
+          </form>
+
+          <div class="d-flex gap-2">
+            <button id="snap" class="btn btn-ns btn-lg flex-grow-1 fw-semibold">
+              Snap Photo
+            </button>
+            <button id="stop_start_video" class="btn btn-outline-secondary btn-lg flex-grow-1">
+              Stop Video
+            </button>
+          </div>
+
+          <p class="text-muted text-center mt-3 mb-0" style="font-size:.8125rem;">
+            <i class="bi bi-info-circle me-1"></i>
+            Analysis may take a few seconds while AI classifies the food.
+          </p>
+        </div>
+
+      </div>
+      <!-- /Camera card -->
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/index.js') }}"></script>
+{% endblock %}
