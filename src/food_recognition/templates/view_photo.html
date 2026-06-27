@@ -129,11 +129,10 @@
 
                 <!-- Verified checkbox -->
                 <td class="text-center">
-                  <div class="form-check d-flex justify-content-center mb-0">
-                    <input id="verified_{{ loop.index }}" class="form-check-input" type="checkbox"
-                           {% if food_register['verified'] %}checked{% endif %}
-                           onchange="markUpdated({{ loop.index }})">
-                  </div>
+                  <input id="verified_{{ loop.index }}" class="form-check-input" type="checkbox"
+                         style="margin:0;"
+                         {% if food_register['verified'] %}checked{% endif %}
+                         onchange="markUpdated({{ loop.index }})">
                 </td>
 
                 <!-- Save button -->
@@ -178,7 +177,7 @@
     document.getElementById('updated_' + index).value = '*';
   }
   $(document).ready(function () {
-    $('select[id^="food_type_"]').select2();
+    $('select[id^="food_type_"]').select2({ dropdownParent: $('body') });
   });
 </script>
 <script src="{{ url_for('static', filename='js/view_photo.js') }}"></script>
