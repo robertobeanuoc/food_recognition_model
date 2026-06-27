@@ -67,7 +67,15 @@ def upload():
     app_logger.info("Classifying the image ..")
     food_types:list[dict] = classify_image(file_image)
     for food_type in food_types:
-        insert_food_type(file_uid=uuid_img,food_type=food_type['food_type'], glycemic_index=food_type['glycemic_index'], weight_grams=food_type['weight_grams'])
+        insert_food_type(
+            file_uid=uuid_img,
+            food_type=food_type['food_type'],
+            glycemic_index=food_type['glycemic_index'],
+            weight_grams=food_type['weight_grams'],
+            carbohydrate_percentage=food_type.get('carbohydrate_percentage'),
+            carbohydrate_weight_grams=food_type.get('carbohydrate_weight_grams'),
+            absorption_type=food_type.get('absorption_type'),
+        )
 
     file_json:str = os.path.join(UPLOAD_FOLDER,f"{uuid_img}.json")
     with open(file_json, 'w') as f:

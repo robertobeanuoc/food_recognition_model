@@ -18,6 +18,9 @@ def insert_food_type(
     food_type: str,
     glycemic_index: int,
     weight_grams: int,
+    carbohydrate_percentage: float = None,
+    carbohydrate_weight_grams: float = None,
+    absorption_type: str = None,
     created_at: datetime.datetime = None,
 ):
     if created_at is None:
@@ -26,31 +29,37 @@ def insert_food_type(
 
     app_logger.info("Connected to the database")
 
-    # Create a cursor object to execute SQL queries
     cursor = cnx.cursor()
 
-    # Define the SQL query to insert a record into the food_table
-    query: str = f"""INSERT INTO food_register 
+    query: str = """INSERT INTO food_register
              (file_uid,
               food_type,
               original_food_type,
               glycemic_index,
               original_glycemic_index,
               weight_grams,
-              created_at 
-            ) VALUES ( 
-              '{file_uid}', 
-              '{food_type}', 
-             '{food_type}',               
-               {glycemic_index},
-               {glycemic_index},               
-               {weight_grams}, 
-              '{created_at.strftime('%Y-%m-%d %H:%M:%S')}' 
+              carbohydrate_percentage,
+              carbohydrate_weight_grams,
+              absorption_type,
+              created_at
+            ) VALUES (
+              %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )"""
+    params = (
+        file_uid,
+        food_type,
+        food_type,
+        glycemic_index,
+        glycemic_index,
+        weight_grams,
+        carbohydrate_percentage,
+        carbohydrate_weight_grams,
+        absorption_type,
+        created_at.strftime('%Y-%m-%d %H:%M:%S'),
+    )
     app_logger.info(f"Query: {query}")
 
-    # Execute the query with the provided values
-    cursor.execute(query)
+    cursor.execute(query, params)
     app_logger.info("Record inserted successfully")
 
     # Commit the changes to the database
@@ -171,22 +180,24 @@ def get_food_registers(
     # Create a cursor object to execute SQL queries
     cursor = cnx.cursor()
 
-    # Define the SQL query to retrieve all records from the food_table
     query: str = (
-        f"SELECT food_type, glycemic_index, weight_grams, created_at, file_uid, verified, uuid FROM food_register where 1=1"
+        "SELECT food_type, glycemic_index, weight_grams, created_at, file_uid, verified, uuid,"
+        " carbohydrate_percentage, carbohydrate_weight_grams, absorption_type"
+        " FROM food_register WHERE 1=1"
     )
+    params: list = []
     if file_uid:
-        query += f" and file_uid = '{file_uid}'"
+        query += " AND file_uid = %s"
+        params.append(file_uid)
     if start_date:
-        query += f" and created_at >= '{start_date.strftime('%Y-%m-%d')}'"
-    query += " order by created_at desc"
+        query += " AND created_at >= %s"
+        params.append(start_date.strftime('%Y-%m-%d'))
+    query += " ORDER BY created_at DESC"
     app_logger.info(f"Query: {query}")
 
-    # Execute the query
-    cursor.execute(query)
+    cursor.execute(query, params)
     app_logger.info("Query executed successfully")
 
-    # Fetch all the records
     records = cursor.fetchall()
     records_json = []
     for record in records:
@@ -198,6 +209,9 @@ def get_food_registers(
             "file_uid": record[4],
             "verified": record[5],
             "uuid": record[6],
+            "carbohydrate_percentage": record[7],
+            "carbohydrate_weight_grams": record[8],
+            "absorption_type": record[9],
         }
         records_json.append(record_dict)
     app_logger.info("Records fetched")
