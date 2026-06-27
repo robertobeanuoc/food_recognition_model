@@ -1,59 +1,121 @@
-<!doctype html>
-<html lang="en">
+{% extends "base.html" %}
+{% block title %}NutriScan – Meal History{% endblock %}
+{% block nav_meals %}active{% endblock %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Captured meals</title>
-    <script src="{{ url_for('static', filename='js/meals.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/food_register.js') }}"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-</head>
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
 
-<body>
-    <p>
-    <a href="{{ url_for('index') }}">Take a food photo</a>
-    </p>
-    <form action="{{ url_for('meals') }}" method="post">
-        Data filtred from <input type="text" name="datepicker" id="datepicker" value="{{start_date}}"/> 
-        <input type="submit" value="Filter" />
-    </form>
-    </p>
-    <script>
-        flatpickr("#datepicker", {});
-      </script>
-    <table style="border: 1px solid black; border-collapse: collapse;">
-        <colgroup>
-            <col style="border-right: 1px solid black;">
-            <col style="border-right: 1px solid black;">
-            <col style="border-right: 1px solid black;">
-            <col style="border-right: 1px solid black;">
-            <col style="border-right: 1px solid black;">
-            <col style="border-right: 1px solid black;">
-        </colgroup>
+{% block content %}
+<div class="container">
+
+  <!-- ── Page heading ─────────────────────────────────────────── -->
+  <div class="page-heading d-flex align-items-start justify-content-between flex-wrap gap-2 mb-4">
+    <div>
+      <h1>Meal History</h1>
+      <p class="text-muted">All captured food entries from the selected date.</p>
+    </div>
+    <a href="{{ url_for('index') }}" class="btn btn-ns align-self-start">
+      <i class="bi bi-camera me-1"></i>New Capture
+    </a>
+  </div>
+
+  <!-- ── Date filter card ─────────────────────────────────────── -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <span class="section-title"><i class="bi bi-funnel me-2 text-muted"></i>Filter</span>
+    </div>
+    <div class="card-body">
+      <form action="{{ url_for('meals') }}" method="post" class="row g-3 align-items-end">
+        <div class="col-12 col-sm-auto">
+          <label for="datepicker" class="form-label small fw-semibold text-secondary mb-1">Show entries from</label>
+          <input type="text" name="datepicker" id="datepicker"
+                 value="{{ start_date }}" class="form-control"
+                 placeholder="Select a date…" autocomplete="off">
+        </div>
+        <div class="col-12 col-sm-auto">
+          <button type="submit" class="btn btn-ns w-100">
+            <i class="bi bi-search me-1"></i>Apply
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Results card ─────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <span class="section-title"><i class="bi bi-table me-2 text-muted"></i>Entries</span>
+      <span class="badge rounded-pill" style="background:#f1f5f9; color:#475569; font-size:.75rem; font-weight:600;">
+        {{ food_registers|length }} row{{ 's' if food_registers|length != 1 }}
+      </span>
+    </div>
+
+    {% if food_registers %}
+    <div class="table-responsive">
+      <table class="table app-table mb-0">
         <thead>
-            <tr style="border: 1px solid black;">
-                <th align="left">Created At</th>
-                <th align="left">Food Type</th>
-                <th align="right">Glycemic Index</th>
-                <th align="right">Weight (gr)</th>
-                <th align="left">Picture</th>
-            </tr>
-            {%for food_register in food_registers%}
-            <tr style="border-bottom: 1px solid black;">
-                <td>{{food_register['created_at'].strftime('%Y-%m-%d %H:%M')}}</td>
-                <td>{{food_register['food_type']}}</td>
-                <td>{{food_register['glycemic_index']}}</td>
-                <td>{{food_register['weight_grams']}}</td>
-                <td><a href="/view_photo/{{food_register['file_uid']}}">
-                        <img src="/photo/{{food_register['file_uid']}}.jpg" width="100" height="100" />
-                    </a>
-                </td>
-            </tr>
-            </tr>
-            {%endfor%}
-    </table>
-</body>
+          <tr>
+            <th>Date</th>
+            <th>Food Type</th>
+            <th class="text-end">Glycemic Index</th>
+            <th class="text-end">Weight (g)</th>
+            <th>Photo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for food_register in food_registers %}
+          <tr>
+            <td class="text-nowrap" style="color:#64748b; font-size:.8125rem;">
+              {{ food_register['created_at'].strftime('%Y-%m-%d %H:%M') }}
+            </td>
+            <td class="fw-medium">{{ food_register['food_type'] }}</td>
+            <td class="text-end">
+              {% set gi = food_register['glycemic_index'] %}
+              {% if gi %}
+                {% if gi < 55 %}
+                  <span class="gi-badge gi-low">{{ gi }}</span>
+                {% elif gi < 70 %}
+                  <span class="gi-badge gi-medium">{{ gi }}</span>
+                {% else %}
+                  <span class="gi-badge gi-high">{{ gi }}</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-end">{{ food_register['weight_grams'] }}&nbsp;g</td>
+            <td>
+              <a href="/view_photo/{{ food_register['file_uid'] }}" title="View analysis">
+                <img src="/photo/{{ food_register['file_uid'] }}.jpg"
+                     alt="{{ food_register['food_type'] }}"
+                     class="meal-thumb">
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
-</html>
+    {% else %}
+    <div class="empty-state">
+      <i class="bi bi-journal-x"></i>
+      <p>No meals recorded since <strong>{{ start_date }}</strong>.</p>
+    </div>
+    {% endif %}
+
+  </div>
+  <!-- /Results card -->
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="{{ url_for('static', filename='js/meals.js') }}"></script>
+<script src="{{ url_for('static', filename='js/food_register.js') }}"></script>
+<script>
+  flatpickr("#datepicker", {});
+</script>
+{% endblock %}

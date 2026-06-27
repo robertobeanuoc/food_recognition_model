@@ -1,0 +1,299 @@
+/* ── Design tokens ───────────────────────────────────────────── */
+:root {
+  --ns-primary:       #16a34a;
+  --ns-primary-dark:  #15803d;
+  --ns-navbar:        #0f172a;
+  --ns-surface:       #f1f5f9;
+  --ns-card-shadow:   0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+}
+
+/* ── Base ─────────────────────────────────────────────────────── */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: var(--ns-surface);
+  min-height: 100vh;
+}
+
+/* ── Navbar ───────────────────────────────────────────────────── */
+.app-navbar {
+  background-color: var(--ns-navbar);
+  box-shadow: 0 1px 4px rgba(0,0,0,.3);
+}
+
+.app-navbar .navbar-brand {
+  font-weight: 700;
+  letter-spacing: -.3px;
+  font-size: 1.2rem;
+  color: #fff;
+}
+
+.app-navbar .brand-accent {
+  color: #4ade80;
+}
+
+.app-navbar .nav-link {
+  color: rgba(255,255,255,.7);
+  font-size: .875rem;
+  font-weight: 500;
+  padding: .4rem .75rem;
+  border-radius: .375rem;
+  transition: background .15s ease, color .15s ease;
+}
+
+.app-navbar .nav-link:hover {
+  color: #fff;
+  background-color: rgba(255,255,255,.1);
+}
+
+.app-navbar .nav-link.active {
+  color: #fff;
+  background-color: rgba(74,222,128,.18);
+}
+
+/* ── Page heading area ────────────────────────────────────────── */
+.page-heading h1 {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.page-heading .text-muted {
+  font-size: .8125rem;
+}
+
+/* ── Cards ────────────────────────────────────────────────────── */
+.card {
+  border: 1px solid #e2e8f0;
+  box-shadow: var(--ns-card-shadow);
+  border-radius: .75rem;
+}
+
+.card-header {
+  background-color: #fff;
+  border-bottom: 1px solid #f1f5f9;
+  border-radius: .75rem .75rem 0 0 !important;
+  padding: .875rem 1.25rem;
+}
+
+.section-title {
+  font-weight: 600;
+  font-size: .9375rem;
+  color: #0f172a;
+}
+
+/* ── Primary action button ────────────────────────────────────── */
+.btn-ns {
+  background-color: var(--ns-primary);
+  border-color: var(--ns-primary);
+  color: #fff;
+  font-weight: 500;
+}
+
+.btn-ns:hover,
+.btn-ns:focus {
+  background-color: var(--ns-primary-dark);
+  border-color: var(--ns-primary-dark);
+  color: #fff;
+}
+
+/* ── GI badges ────────────────────────────────────────────────── */
+.gi-badge {
+  display: inline-block;
+  padding: .2em .55em;
+  border-radius: .375rem;
+  font-size: .75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.gi-low    { background: #dcfce7; color: #15803d; }
+.gi-medium { background: #fef9c3; color: #854d0e; }
+.gi-high   { background: #fee2e2; color: #991b1b; }
+
+/* ── Data tables ──────────────────────────────────────────────── */
+.app-table {
+  font-size: .875rem;
+  margin: 0;
+}
+
+.app-table thead th {
+  background-color: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  border-top: none;
+  border-bottom: 2px solid #e2e8f0;
+  padding: .625rem 1rem;
+  white-space: nowrap;
+}
+
+.app-table tbody tr {
+  border-bottom: 1px solid #f1f5f9;
+  transition: background .1s;
+}
+
+.app-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.app-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.app-table td {
+  padding: .625rem 1rem;
+  vertical-align: middle;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* ── Editable table inputs ────────────────────────────────────── */
+.app-table .form-control,
+.app-table .form-select {
+  font-size: .8125rem;
+  padding: .3rem .55rem;
+  border-color: #e2e8f0;
+  min-height: unset;
+  height: auto;
+}
+
+.app-table .form-control:focus,
+.app-table .form-select:focus {
+  border-color: var(--ns-primary);
+  box-shadow: 0 0 0 .2rem rgba(22,163,74,.15);
+}
+
+.app-table input[type="number"] {
+  width: 86px;
+}
+
+.updated-indicator {
+  width: 2rem;
+  text-align: center;
+  color: #f59e0b;
+  font-weight: 700;
+  background: transparent;
+  border: 1px solid transparent;
+  font-size: .875rem;
+  padding: .3rem .25rem;
+}
+
+/* ── Select2 – Bootstrap integration ─────────────────────────── */
+.select2-container {
+  min-width: 160px;
+}
+
+.select2-container--default .select2-selection--single {
+  height: calc(1.5em + .6rem + 2px);
+  border: 1px solid #e2e8f0;
+  border-radius: .375rem;
+  font-size: .8125rem;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  line-height: calc(1.5em + .6rem);
+  color: #212529;
+  padding-left: .55rem;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: calc(1.5em + .6rem);
+}
+
+.select2-container--default.select2-container--focus .select2-selection--single {
+  border-color: var(--ns-primary);
+  box-shadow: 0 0 0 .2rem rgba(22,163,74,.15);
+}
+
+.select2-dropdown {
+  border-color: #e2e8f0;
+  font-size: .8125rem;
+}
+
+/* ── Camera page ──────────────────────────────────────────────── */
+.camera-viewport {
+  background: #000;
+  border-radius: 0;
+  overflow: hidden;
+  position: relative;
+  line-height: 0;
+}
+
+#video {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 62vh;
+  object-fit: cover;
+}
+
+.camera-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  display: inline-block;
+  animation: blink 1.2s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .3; }
+}
+
+/* ── Meals thumbnails ─────────────────────────────────────────── */
+.meal-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: .5rem;
+  border: 2px solid #e2e8f0;
+  transition: transform .15s ease, border-color .15s ease;
+}
+
+.meal-thumb:hover {
+  transform: scale(1.08);
+  border-color: var(--ns-primary);
+}
+
+/* ── Empty state ──────────────────────────────────────────────── */
+.empty-state {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.empty-state i {
+  font-size: 2.5rem;
+  margin-bottom: .75rem;
+  display: block;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: .9375rem;
+}
+
+/* ── Save button state ────────────────────────────────────────── */
+.btn-save {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: .375rem;
+}
+
+/* ── Responsive tweaks ────────────────────────────────────────── */
+@media (max-width: 575.98px) {
+  .page-heading h1 { font-size: 1.2rem; }
+  .card-header     { padding: .75rem 1rem; }
+  .app-table td,
+  .app-table thead th { padding: .5rem .75rem; }
+  .meal-thumb      { width: 44px; height: 44px; }
+}

@@ -1,88 +1,185 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Food Photo {{uuid_img}} at {{created_at}}</title>
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <!-- Include jQuery (required by Select2) -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Include Select2 JavaScript -->
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            // Initialize Select2 on all select elements with id starting with 'food_type_'
-            $('select[id^="food_type_"]').select2();
-        });        
-    </script>
-    <script>
-        function markUpdated(index) {        
-            document.getElementById('updated_' + index).value = '*';
-        }
-    </script>
+{% extends "base.html" %}
+{% block title %}Food Analysis – {{ created_at }}{% endblock %}
 
-<body>
+{% block head %}
+<!-- Select2 -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+{% endblock %}
 
-    <p><a href="{{ url_for('index') }}">Take food foto</a></p>
-    <p><a href="{{ url_for('meals') }}">Show all captured meals</a></p>
-    <h1>Food register {{created_at}}</h1>
-    <br>
-    <img src="/photo/{{uuid_img}}.jpg" alt="Photo">
-    <br>
+{% block content %}
+<div class="container-lg">
 
+  <!-- ── Breadcrumb + heading ─────────────────────────────────── -->
+  <div class="page-heading mb-4">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1" style="font-size:.8125rem;">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}" class="text-decoration-none">Capture</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('meals') }}" class="text-decoration-none">Meals</a></li>
+        <li class="breadcrumb-item active">Analysis</li>
+      </ol>
+    </nav>
+    <h1>Food Analysis</h1>
+    {% if created_at %}
+    <p class="text-muted">Captured on {{ created_at }}</p>
+    {% endif %}
+  </div>
 
-        <table style="border: 1px solid black; border-collapse: collapse;" id="table_values">
-            <script src="{{ url_for('static', filename='js/view_photo.js') }}"></script>
-            <script src="{{ url_for('static', filename='js/food_register.js') }}"></script>
-            <colgroup>
-                <col style="border-right: 1px solid black;">
-                <col style="border-right: 1px solid black;">
-                <col style="border-right: 1px solid black;">
-                <col style="border-right: 1px solid black;">
-                <col style="border-right: 1px solid black;">
-                <col style="border-right: 1px solid black;">
-                <col style="border-right: 1px solid black;">
-            </colgroup>
+  <!-- ── Two-column layout ────────────────────────────────────── -->
+  <div class="row g-4 align-items-start">
+
+    <!-- Image column -->
+    <div class="col-12 col-lg-4">
+      <div class="card">
+        <div class="card-header">
+          <span class="section-title"><i class="bi bi-image me-2 text-muted"></i>Photo</span>
+        </div>
+        <div class="p-0 text-center" style="line-height:0;">
+          <img src="/photo/{{ uuid_img }}.jpg" alt="Food photo"
+               class="img-fluid rounded-bottom"
+               style="width:100%; max-height:420px; object-fit:cover;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Analysis table column -->
+    <div class="col-12 col-lg-8">
+      <div class="card">
+
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <span class="section-title"><i class="bi bi-list-check me-2 text-muted"></i>Detected Foods</span>
+          {% if food_registers %}
+          <span class="badge rounded-pill" style="background:#dcfce7; color:#15803d; font-size:.75rem; font-weight:600;">
+            {{ food_registers|length }} item{{ 's' if food_registers|length != 1 }}
+          </span>
+          {% endif %}
+        </div>
+
+        {% if food_registers %}
+        <div class="table-responsive">
+          <table class="table app-table mb-0" id="table_values">
             <thead>
-                <tr style="border: 1px solid black;">
-                    <th align="left">Updated</th>
-                    <th align="left">Food Type</th>
-                    <th align="right">Glycemic Index</th>
-                    <th align="right">Weight (gr)</th>
-                    <th align="left">Similar Food Type</th>
-                    <th align="left">Glycemic Index</th>
-                    <th align="right">Verified</th>
-                    <th align="right">Update</th>
-                </tr>
+              <tr>
+                <th title="Changed">Chg</th>
+                <th>Food Type</th>
+                <th class="text-end">GI</th>
+                <th class="text-end">Weight (g)</th>
+                <th>Similar Food</th>
+                <th class="text-end">Sim. GI</th>
+                <th class="text-center">Verified</th>
+                <th class="text-center">Save</th>
+              </tr>
             </thead>
             <tbody>
-                {% for food_register in food_registers %}
-                <tr>
-                    <td align="left"><input id="updated_{{loop.index}}" type="text" value="" disabled/></td>
-                    <td align="left">
-                        <select id="food_type_{{ loop.index }}" onchange="updateGlycemicIndex({{ loop.index }}); markUpdated({{loop.index}}) ">
-                            {% for food in food_register['all_food_types'].split(',') %}
-                            <option value="{{food}}" {% if food==food_register['food_type'] %} selected {% endif%}>
-                                {{food}} </option>
-                            {% endfor %}
-                        </select>
-                        <input type="hidden" id="uuid_{{loop.index}}" value="{{food_register['uuid']}}"/> </td>
-                    <td align="right"><input type="number" id="glycemic_index_{{loop.index}}"
-                            value="{{food_register['glycemic_index']}}" onchange="markUpdated({{loop.index}})"></td>
-                    <td align="right"><input type="number" id="weight_grams_{{loop.index}}" value="{{food_register['weight_grams']}}" onchange="markUpdated({{loop.index}})"/></td>
-                    <td align="left">{{food_register['similar_food']}}</td>
-                    <td align="left">{{ food_register['similar_glycemic_index'] }}</td>
-                    <td><input id="verified_{{loop.index}}" type="checkbox" {% if food_register["verified"] %} checked {% endif %}  onchange="markUpdated({{loop.index}})"/></td>                                    
-                    <td>
-                        <button id="update_food_register{{loop.index}}" onclick="updateFoodRegister({{loop.index}})">
-                            <img src="{{ url_for('static', filename='img/save.png') }}" width="20em" alt="Save">
-                        </button>
-                    </td>
-                </tr>
-                {% if loop.index == 1 %}<input type="hidden" name="num_food_types" value="{{loop.length}}" /> {% endif %}
-                {% endfor %}
-            </tbody>
-        </table>
-</body>
+              {% for food_register in food_registers %}
+              <tr>
 
-</html>
+                <!-- Change indicator -->
+                <td>
+                  <input id="updated_{{ loop.index }}" type="text" value="" disabled
+                         class="updated-indicator form-control">
+                </td>
+
+                <!-- Food type selector -->
+                <td>
+                  <select id="food_type_{{ loop.index }}" class="form-select"
+                          onchange="updateGlycemicIndex({{ loop.index }}); markUpdated({{ loop.index }})">
+                    {% for food in food_register['all_food_types'].split(',') %}
+                    <option value="{{ food }}" {% if food == food_register['food_type'] %}selected{% endif %}>{{ food }}</option>
+                    {% endfor %}
+                  </select>
+                  <input type="hidden" id="uuid_{{ loop.index }}" value="{{ food_register['uuid'] }}">
+                </td>
+
+                <!-- Glycemic index (editable) -->
+                <td class="text-end">
+                  <input type="number" id="glycemic_index_{{ loop.index }}"
+                         value="{{ food_register['glycemic_index'] }}"
+                         class="form-control text-end"
+                         onchange="markUpdated({{ loop.index }})">
+                </td>
+
+                <!-- Weight (editable) -->
+                <td class="text-end">
+                  <input type="number" id="weight_grams_{{ loop.index }}"
+                         value="{{ food_register['weight_grams'] }}"
+                         class="form-control text-end"
+                         onchange="markUpdated({{ loop.index }})">
+                </td>
+
+                <!-- Similar food (read-only) -->
+                <td class="text-muted" style="font-size:.8125rem;">{{ food_register['similar_food'] }}</td>
+
+                <!-- Similar food GI badge -->
+                <td class="text-end">
+                  {% set sgi = food_register['similar_glycemic_index'] %}
+                  {% if sgi %}
+                    {% if sgi < 55 %}
+                      <span class="gi-badge gi-low">{{ sgi }}</span>
+                    {% elif sgi < 70 %}
+                      <span class="gi-badge gi-medium">{{ sgi }}</span>
+                    {% else %}
+                      <span class="gi-badge gi-high">{{ sgi }}</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+
+                <!-- Verified checkbox -->
+                <td class="text-center">
+                  <input id="verified_{{ loop.index }}" class="form-check-input" type="checkbox"
+                         style="margin:0;"
+                         {% if food_register['verified'] %}checked{% endif %}
+                         onchange="markUpdated({{ loop.index }})">
+                </td>
+
+                <!-- Save button -->
+                <td class="text-center">
+                  <button id="update_food_register{{ loop.index }}"
+                          class="btn btn-save btn-outline-success"
+                          onclick="updateFoodRegister({{ loop.index }})"
+                          title="Save changes">
+                    <i class="bi bi-floppy" style="font-size:.875rem;"></i>
+                  </button>
+                </td>
+
+              </tr>
+              {% if loop.first %}
+              <input type="hidden" name="num_food_types" value="{{ loop.length }}">
+              {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {% else %}
+        <div class="empty-state">
+          <i class="bi bi-exclamation-circle"></i>
+          <p>No food items were detected for this photo.</p>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+    <!-- /Analysis table column -->
+
+  </div>
+  <!-- /Two-column layout -->
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function markUpdated(index) {
+    document.getElementById('updated_' + index).value = '*';
+  }
+  $(document).ready(function () {
+    $('select[id^="food_type_"]').select2({ dropdownParent: $('body') });
+  });
+</script>
+<script src="{{ url_for('static', filename='js/view_photo.js') }}"></script>
+<script src="{{ url_for('static', filename='js/food_register.js') }}"></script>
+{% endblock %}
