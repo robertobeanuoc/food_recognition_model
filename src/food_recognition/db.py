@@ -78,6 +78,8 @@ def update_food_register(
     glycemic_index: int = None,
     weight_grams: int = None,
     verified: int = None,
+    carbohydrate_percentage: float = None,
+    carbohydrate_weight_grams: float = None,
     updated_at: datetime.datetime = None,
 ):
     if updated_at is None:
@@ -95,6 +97,7 @@ def update_food_register(
     query: str = (
         f" UPDATE food_register  set updated_at='{updated_at.strftime('%Y-%m-%d %H:%M:%S')}'"
     )
+    params: list = []
     if food_type != None and food_type != "":
         query = query + f", food_type = '{food_type}'"
     if glycemic_index != None:
@@ -103,12 +106,18 @@ def update_food_register(
         query = query + f", weight_grams = {weight_grams}"
     if verified != None:
         query = query + f", verified = {verified}"
+    if carbohydrate_percentage != None:
+        query = query + ", carbohydrate_percentage = %s"
+        params.append(carbohydrate_percentage)
+    if carbohydrate_weight_grams != None:
+        query = query + ", carbohydrate_weight_grams = %s"
+        params.append(carbohydrate_weight_grams)
     query = query + f" WHERE uuid = '{uuid}'"
 
     app_logger.info(f"Query: {query}")
 
     # Execute the query with the provided values
-    cursor.execute(query)
+    cursor.execute(query, params)
     app_logger.info("Record inserted successfully")
 
     # Commit the changes to the database
@@ -116,6 +125,26 @@ def update_food_register(
     app_logger.info("Changes committed")
 
     # Close the cursor and the connection
+    cursor.close()
+    cnx.close()
+    app_logger.info("Connection closed")
+
+
+def delete_food_register(uuid: str) -> None:
+    cnx: mysql.connector.MySQLConnection = _connect_to_db()
+    app_logger.info("Connected to the database")
+
+    cursor = cnx.cursor()
+
+    query: str = "DELETE FROM food_register WHERE uuid = %s"
+    app_logger.info(f"Query: {query}")
+
+    cursor.execute(query, (uuid,))
+    app_logger.info("Record deleted successfully")
+
+    cnx.commit()
+    app_logger.info("Changes committed")
+
     cursor.close()
     cnx.close()
     app_logger.info("Connection closed")

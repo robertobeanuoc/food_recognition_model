@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -15,13 +15,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY src/requirements.txt /app/requirements.txt
+COPY requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && pip install --no-cache-dir -r /app/requirements.txt
 
 COPY src/ /app/
 
-ENV FLASK_APP=flask_server.py
+ENV FLASK_APP=main.py
 EXPOSE 5010
 
 # Run the Flask app directly with Python (development mode)
-CMD ["python", "flask_server.py"]
+CMD ["python", "main.py"]

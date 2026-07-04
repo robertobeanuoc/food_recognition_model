@@ -7,7 +7,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container-app">
 
   <!-- ── Page heading ─────────────────────────────────────────── -->
   <div class="page-heading d-flex align-items-start justify-content-between flex-wrap gap-2 mb-4">
@@ -64,6 +64,7 @@
             <th class="text-end">Carbs (g)</th>
             <th class="text-center">Absorption</th>
             <th>Photo</th>
+            <th class="text-center">Delete</th>
           </tr>
         </thead>
         <tbody>
@@ -124,6 +125,14 @@
                      alt="{{ food_register['food_type'] }}"
                      class="meal-thumb">
               </a>
+            </td>
+            <td class="text-center">
+              <button type="button"
+                      class="btn btn-outline-danger btn-sm"
+                      onclick="deleteFoodRegister('{{ food_register['uuid'] }}', this)"
+                      title="Eliminar registro">
+                <i class="bi bi-trash" style="font-size:.875rem;"></i>
+              </button>
             </td>
           </tr>
           {% endfor %}

@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-lg">
+<div class="container-app">
 
   <!-- ── Breadcrumb + heading ─────────────────────────────────── -->
   <div class="page-heading mb-4">
@@ -26,11 +26,9 @@
     {% endif %}
   </div>
 
-  <!-- ── Two-column layout ────────────────────────────────────── -->
-  <div class="row g-4 align-items-start">
-
-    <!-- Image column -->
-    <div class="col-12 col-lg-4">
+  <!-- ── Photo ─────────────────────────────────────────────────── -->
+  <div class="row g-4 mb-4">
+    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
       <div class="card">
         <div class="card-header">
           <span class="section-title"><i class="bi bi-image me-2 text-muted"></i>Photo</span>
@@ -42,9 +40,11 @@
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Analysis table column -->
-    <div class="col-12 col-lg-8">
+  <!-- ── Analysis table (full width) ──────────────────────────── -->
+  <div class="row g-4">
+    <div class="col-12">
       <div class="card">
 
         <div class="card-header d-flex align-items-center justify-content-between">
@@ -71,7 +71,7 @@
                 <th>Similar Food</th>
                 <th class="text-end">Sim. GI</th>
                 <th class="text-center">Verified</th>
-                <th class="text-center">Save</th>
+                <th class="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -108,20 +108,20 @@
                   <input type="number" id="weight_grams_{{ loop.index }}"
                          value="{{ food_register['weight_grams'] }}"
                          class="form-control text-end"
-                         onchange="markUpdated({{ loop.index }})">
+                         onchange="updateCarbWeight({{ loop.index }}); markUpdated({{ loop.index }})">
                 </td>
 
-                <!-- Carbohydrate percentage (read-only) -->
-                <td class="text-end text-muted" style="font-size:.8125rem;">
-                  {% if food_register['carbohydrate_percentage'] is not none %}
-                    {{ "%.1f"|format(food_register['carbohydrate_percentage']) }}&nbsp;%
-                  {% else %}
-                    —
-                  {% endif %}
+                <!-- Carbohydrate percentage (editable) -->
+                <td class="text-end">
+                  <input type="number" id="carbohydrate_percentage_{{ loop.index }}"
+                         value="{{ '%.1f'|format(food_register['carbohydrate_percentage']) if food_register['carbohydrate_percentage'] is not none else '' }}"
+                         step="0.1" min="0" max="100"
+                         class="form-control text-end"
+                         onchange="updateCarbWeight({{ loop.index }}); markUpdated({{ loop.index }})">
                 </td>
 
-                <!-- Carbohydrate weight (read-only) -->
-                <td class="text-end text-muted" style="font-size:.8125rem;">
+                <!-- Carbohydrate weight (derived, read-only) -->
+                <td class="text-end text-muted" id="carbohydrate_weight_grams_{{ loop.index }}" style="font-size:.8125rem;">
                   {% set cp = food_register['carbohydrate_percentage'] %}
                   {% set wg = food_register['weight_grams'] %}
                   {% if cp is not none and wg is not none %}
@@ -174,14 +174,22 @@
                          onchange="markUpdated({{ loop.index }})">
                 </td>
 
-                <!-- Save button -->
+                <!-- Save / Delete actions -->
                 <td class="text-center">
-                  <button id="update_food_register{{ loop.index }}"
-                          class="btn btn-save btn-outline-success"
-                          onclick="updateFoodRegister({{ loop.index }})"
-                          title="Save changes">
-                    <i class="bi bi-floppy" style="font-size:.875rem;"></i>
-                  </button>
+                  <div class="d-flex gap-1 justify-content-center">
+                    <button id="update_food_register{{ loop.index }}"
+                            class="btn btn-save btn-outline-success"
+                            onclick="updateFoodRegister({{ loop.index }})"
+                            title="Save changes">
+                      <i class="bi bi-floppy" style="font-size:.875rem;"></i>
+                    </button>
+                    <button type="button"
+                            class="btn btn-save btn-outline-danger"
+                            onclick="deleteFoodRegister('{{ food_register['uuid'] }}', this)"
+                            title="Eliminar registro">
+                      <i class="bi bi-trash" style="font-size:.875rem;"></i>
+                    </button>
+                  </div>
                 </td>
 
               </tr>
@@ -202,10 +210,9 @@
 
       </div>
     </div>
-    <!-- /Analysis table column -->
+    <!-- /Analysis table -->
 
   </div>
-  <!-- /Two-column layout -->
 
 </div>
 {% endblock %}

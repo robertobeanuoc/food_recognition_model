@@ -10,7 +10,7 @@ A Flask web app that accepts a food photo, classifies it via OpenAI GPT-4o visio
 
 ```bash
 # From repo root
-python -m pip install -r src/requirements.txt
+python -m pip install -r requirements.txt
 
 export OPENAI_API_KEY="sk-..."
 export SECRET_KEY="your-secret"
@@ -19,7 +19,7 @@ export DB_HOST=127.0.0.1 DB_PORT=3306 DB_USER=root DB_PASSWORD=... DB_NAME=food_
 mkdir -p photos src/food_recognition/static/uploads
 
 # Must run from src/ — paths in the app are relative to that directory
-cd src && python flask_server.py
+cd src && python main.py
 ```
 
 App is available at `https://localhost:5010` (Flask starts with `ssl_context='adhoc'`).
@@ -59,7 +59,7 @@ Reads `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` from the environment.
 
 ### Request flow
 
-1. `POST /upload` → `flask_server.py:upload()` — decodes image with OpenCV, saves as `<uuid>.jpg` under `static/uploads/`, calls `classify_image()`.
+1. `POST /upload` → `main.py:upload()` — decodes image with OpenCV, saves as `<uuid>.jpg` under `static/uploads/`, calls `classify_image()`.
 2. `food_classification.py:classify_image()` — base64-encodes the image and sends it to GPT-4o vision. Returns a JSON array: `[{food_type, glycemic_index, weight_grams}, ...]`.
 3. Each item is inserted into `food_register` via `db.py:insert_food_type()`. The image and a companion `.json` file are copied to `PHOTO_FOLDER`.
 4. Redirect to `GET /view_photo/<file_uid>` — fetches all rows for that `file_uid` and calls `add_similar_food_info_to_food()`.
@@ -69,7 +69,7 @@ Reads `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` from the environment.
 
 | File | Role |
 |---|---|
-| `src/flask_server.py` | Entry point; all HTTP routes |
+| `src/main.py` | Entry point; all HTTP routes |
 | `src/food_recognition/food_classification.py` | GPT-4o vision call; returns classified food list |
 | `src/food_recognition/similar_food.py` | GPT-4o text call; maps a free-text food name to the reference `glycemic_index` table |
 | `src/food_recognition/db.py` | All MySQL queries (no ORM; raw `mysql-connector-python`) |
@@ -83,7 +83,7 @@ Reads `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` from the environment.
 
 ### Important path dependency
 
-`flask_server.py` and `constants.py` use relative paths (`food_recognition/static/uploads`, `food_recognition/jinja2_templates/similar_files.jinja`). The app **must be launched from `src/`**; otherwise these paths break.
+`main.py` and `constants.py` use relative paths (`food_recognition/static/uploads`, `food_recognition/jinja2_templates/similar_files.jinja`). The app **must be launched from `src/`**; otherwise these paths break.
 
 ### Environment variables
 
@@ -101,4 +101,4 @@ Reads `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` from the environment.
 
 - `db.py` builds SQL with f-strings throughout — no parameterized queries. Any new DB code should use `%s` placeholders with `cursor.execute(query, params)`.
 - `similar_food.py` makes two OpenAI calls **per food item** on every `/view_photo` load; there is no caching.
-- `update_food_register` in `flask_server.py` is called with keyword argument `file_uid=` but the function signature uses `uuid=` — the two call sites use different parameter names; verify carefully when editing that function.
+- `update_food_register` in `main.py` is called with keyword argument `file_uid=` but the function signature uses `uuid=` — the two call sites use different parameter names; verify carefully when editing that function.
