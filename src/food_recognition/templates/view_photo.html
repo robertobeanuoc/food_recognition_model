@@ -122,7 +122,11 @@
 
                 <!-- Carbohydrate weight (read-only) -->
                 <td class="text-end text-muted" style="font-size:.8125rem;">
-                  {% if food_register['carbohydrate_weight_grams'] is not none %}
+                  {% set cp = food_register['carbohydrate_percentage'] %}
+                  {% set wg = food_register['weight_grams'] %}
+                  {% if cp is not none and wg is not none %}
+                    {{ "%.1f"|format((cp|float) * (wg|float) / 100) }}&nbsp;g
+                  {% elif food_register['carbohydrate_weight_grams'] is not none %}
                     {{ "%.1f"|format(food_register['carbohydrate_weight_grams']) }}&nbsp;g
                   {% else %}
                     —
