@@ -7,7 +7,7 @@ import numpy as np
 import os
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
-from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register
+from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register, delete_food_register
 from food_recognition.similar_food import add_similar_food_info_to_food
 import json
 import uuid
@@ -133,6 +133,14 @@ def api_update_food_register(uuid:str, food_type:str, glycemic_index:int, weight
     update_food_register(uuid=uuid, food_type=food_type, glycemic_index=glycemic_index, weight_grams=weight_grams, verified=verified)
     #TODO return to the previus page
     return redirect(url_for('meals'))
+
+
+@app.route('/delete_food_register/<uuid>', methods=['DELETE'])
+def api_delete_food_register(uuid: str):
+    validate_uuid(uuid)
+    app_logger.info(f"Deleting food_register {uuid} ..")
+    delete_food_register(uuid=uuid)
+    return {"status": "ok"}
 
 
 @app.route('/view_photo/<file_uid>', methods=['GET'])

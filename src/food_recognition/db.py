@@ -121,6 +121,26 @@ def update_food_register(
     app_logger.info("Connection closed")
 
 
+def delete_food_register(uuid: str) -> None:
+    cnx: mysql.connector.MySQLConnection = _connect_to_db()
+    app_logger.info("Connected to the database")
+
+    cursor = cnx.cursor()
+
+    query: str = "DELETE FROM food_register WHERE uuid = %s"
+    app_logger.info(f"Query: {query}")
+
+    cursor.execute(query, (uuid,))
+    app_logger.info("Record deleted successfully")
+
+    cnx.commit()
+    app_logger.info("Changes committed")
+
+    cursor.close()
+    cnx.close()
+    app_logger.info("Connection closed")
+
+
 def _connect_to_db() -> mysql.connector.MySQLConnection:
     cnx: mysql.connector.MySQLConnection = mysql.connector.connect(
         host=os.getenv("DB_HOST"),

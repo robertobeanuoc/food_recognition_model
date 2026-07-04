@@ -72,6 +72,7 @@
                 <th class="text-end">Sim. GI</th>
                 <th class="text-center">Verified</th>
                 <th class="text-center">Save</th>
+                <th class="text-center">Delete</th>
               </tr>
             </thead>
             <tbody>
@@ -181,6 +182,16 @@
                           onclick="updateFoodRegister({{ loop.index }})"
                           title="Save changes">
                     <i class="bi bi-floppy" style="font-size:.875rem;"></i>
+                  </button>
+                </td>
+
+                <!-- Delete button -->
+                <td class="text-center">
+                  <button type="button"
+                          class="btn btn-outline-danger btn-sm"
+                          onclick="deleteFoodRegister('{{ food_register['uuid'] }}', this)"
+                          title="Eliminar registro">
+                    <i class="bi bi-trash" style="font-size:.875rem;"></i>
                   </button>
                 </td>
 

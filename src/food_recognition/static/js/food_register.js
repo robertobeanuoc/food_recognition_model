@@ -39,3 +39,28 @@ function updateFoodRegister(index)
     })
 
 }
+
+function deleteFoodRegister(uuid, button) {
+    if (!confirm('¿Seguro que quieres eliminar este registro?')) {
+        return;
+    }
+
+    const url = `/delete_food_register/${uuid}`;
+    fetch(url, {
+        method: 'DELETE',
+        credentials: 'include',
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Request failed with status ${response.status}`);
+        }
+        const row = button.closest('tr');
+        if (row) {
+            row.remove();
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting food register:', error);
+        alert('No se ha podido eliminar el registro.');
+    });
+}
