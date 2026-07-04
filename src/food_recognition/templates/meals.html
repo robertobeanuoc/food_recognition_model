@@ -103,11 +103,13 @@
               {% endif %}
             </td>
             <td class="text-center">
-              {% set at = food_register['absorption_type'] %}
-              {% if at == 'slow' %}
-                <span class="gi-badge gi-low">Slow</span>
-              {% elif at == 'fast' %}
-                <span class="gi-badge gi-high">Fast</span>
+              {% set gi = food_register['glycemic_index'] %}
+              {% if gi is not none %}
+                {% if gi < 55 %}
+                  <span class="gi-badge gi-low">Slow</span>
+                {% else %}
+                  <span class="gi-badge gi-high">Fast</span>
+                {% endif %}
               {% else %}
                 <span class="text-muted">—</span>
               {% endif %}
