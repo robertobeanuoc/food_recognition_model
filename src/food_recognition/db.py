@@ -78,6 +78,8 @@ def update_food_register(
     glycemic_index: int = None,
     weight_grams: int = None,
     verified: int = None,
+    carbohydrate_percentage: float = None,
+    carbohydrate_weight_grams: float = None,
     updated_at: datetime.datetime = None,
 ):
     if updated_at is None:
@@ -95,6 +97,7 @@ def update_food_register(
     query: str = (
         f" UPDATE food_register  set updated_at='{updated_at.strftime('%Y-%m-%d %H:%M:%S')}'"
     )
+    params: list = []
     if food_type != None and food_type != "":
         query = query + f", food_type = '{food_type}'"
     if glycemic_index != None:
@@ -103,12 +106,18 @@ def update_food_register(
         query = query + f", weight_grams = {weight_grams}"
     if verified != None:
         query = query + f", verified = {verified}"
+    if carbohydrate_percentage != None:
+        query = query + ", carbohydrate_percentage = %s"
+        params.append(carbohydrate_percentage)
+    if carbohydrate_weight_grams != None:
+        query = query + ", carbohydrate_weight_grams = %s"
+        params.append(carbohydrate_weight_grams)
     query = query + f" WHERE uuid = '{uuid}'"
 
     app_logger.info(f"Query: {query}")
 
     # Execute the query with the provided values
-    cursor.execute(query)
+    cursor.execute(query, params)
     app_logger.info("Record inserted successfully")
 
     # Commit the changes to the database

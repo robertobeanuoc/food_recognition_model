@@ -127,7 +127,7 @@ body {
   letter-spacing: .06em;
   border-top: none;
   border-bottom: 2px solid #e2e8f0;
-  padding: .625rem 1rem;
+  padding: .625rem .625rem;
   white-space: nowrap;
 }
 
@@ -145,10 +145,37 @@ body {
 }
 
 .app-table td {
-  padding: .625rem 1rem;
+  padding: .625rem .625rem;
   vertical-align: middle;
   border: none;
   border-bottom: 1px solid #f1f5f9;
+}
+
+/* ── Wide content container for data-dense pages ─────────────── */
+.container-app {
+  width: 100%;
+  max-width: 1600px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+/* ── Always-visible scroll affordance for wide tables ─────────── */
+.table-responsive {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.table-responsive::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* ── Editable table inputs ────────────────────────────────────── */
@@ -294,6 +321,6 @@ body {
   .page-heading h1 { font-size: 1.2rem; }
   .card-header     { padding: .75rem 1rem; }
   .app-table td,
-  .app-table thead th { padding: .5rem .75rem; }
+  .app-table thead th { padding: .5rem .5rem; }
   .meal-thumb      { width: 44px; height: 44px; }
 }

@@ -15,3 +15,19 @@ function updateGlycemicIndex(index) {
             console.error('Error:', error);
         });
 }
+
+function updateCarbWeight(index) {
+    var weightInput = document.getElementById('weight_grams_' + index);
+    var carbPercentageInput = document.getElementById('carbohydrate_percentage_' + index);
+    var carbWeightCell = document.getElementById('carbohydrate_weight_grams_' + index);
+
+    var weight = parseFloat(weightInput.value);
+    var carbPercentage = parseFloat(carbPercentageInput.value);
+
+    if (!isNaN(weight) && !isNaN(carbPercentage)) {
+        var carbWeight = (carbPercentage * weight) / 100;
+        carbWeightCell.textContent = carbWeight.toFixed(1) + ' g';
+    } else {
+        carbWeightCell.textContent = '—';
+    }
+}

@@ -130,7 +130,22 @@ def api_update_food_register(uuid:str, food_type:str, glycemic_index:int, weight
     validate_uuid(uuid)
     validate_food_type(food_type)
     app_logger.info(f"Updating food_register for {uuid} ..")
-    update_food_register(uuid=uuid, food_type=food_type, glycemic_index=glycemic_index, weight_grams=weight_grams, verified=verified)
+
+    carbohydrate_percentage: float = None
+    carbohydrate_weight_grams: float = None
+    if request.args.get('carbohydrate_percentage'):
+        carbohydrate_percentage = float(request.args['carbohydrate_percentage'])
+        carbohydrate_weight_grams = carbohydrate_percentage * weight_grams / 100
+
+    update_food_register(
+        uuid=uuid,
+        food_type=food_type,
+        glycemic_index=glycemic_index,
+        weight_grams=weight_grams,
+        verified=verified,
+        carbohydrate_percentage=carbohydrate_percentage,
+        carbohydrate_weight_grams=carbohydrate_weight_grams,
+    )
     #TODO return to the previus page
     return redirect(url_for('meals'))
 
