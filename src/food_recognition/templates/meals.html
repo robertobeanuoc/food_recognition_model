@@ -60,6 +60,9 @@
             <th>Food Type</th>
             <th class="text-end">Glycemic Index</th>
             <th class="text-end">Weight (g)</th>
+            <th class="text-end">Carbs %</th>
+            <th class="text-end">Carbs (g)</th>
+            <th class="text-center">Absorption</th>
             <th>Photo</th>
           </tr>
         </thead>
@@ -85,6 +88,36 @@
               {% endif %}
             </td>
             <td class="text-end">{{ food_register['weight_grams'] }}&nbsp;g</td>
+            <td class="text-end">
+              {% if food_register['carbohydrate_percentage'] is not none %}
+                {{ "%.1f"|format(food_register['carbohydrate_percentage']) }}&nbsp;%
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% set cp = food_register['carbohydrate_percentage'] %}
+              {% set wg = food_register['weight_grams'] %}
+              {% if cp is not none and wg is not none %}
+                {{ "%.1f"|format((cp|float) * (wg|float) / 100) }}&nbsp;g
+              {% elif food_register['carbohydrate_weight_grams'] is not none %}
+                {{ "%.1f"|format(food_register['carbohydrate_weight_grams']) }}&nbsp;g
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% set gi = food_register['glycemic_index'] %}
+              {% if gi is not none %}
+                {% if gi < 55 %}
+                  <span class="gi-badge gi-low">Slow</span>
+                {% else %}
+                  <span class="gi-badge gi-high">Fast</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
             <td>
               <a href="/view_photo/{{ food_register['file_uid'] }}" title="View analysis">
                 <img src="/photo/{{ food_register['file_uid'] }}.jpg"

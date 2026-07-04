@@ -27,7 +27,16 @@ def classify_image(image_file:str) -> dict:
         "content": [
             {
             "type": "text",
-            "text": "Identify all food types in the image, and for each food type, determine the glycemic index and estimate its weight in grams. Export this information as a JSON array where each element is an object with the following key-value pairs: food_type for the food type, glycemic_index for the glycemic index, and weight_grams for the estimated weight in grams.",
+            "text": (
+                "Identify all food types in the image. For each food type, determine: "
+                "(1) the glycemic index (integer), "
+                "(2) the estimated weight in grams (integer), "
+                "(3) the carbohydrate percentage of the food as a decimal between 0 and 100 (e.g. 45.5), "
+                "(4) the carbohydrate weight in grams calculated as carbohydrate_percentage * weight_grams / 100 (rounded to one decimal), "
+                "(5) the absorption type: 'slow' if glycemic_index < 55, 'fast' if glycemic_index >= 55. "
+                "Export as a JSON array where each element has keys: "
+                "food_type, glycemic_index, weight_grams, carbohydrate_percentage, carbohydrate_weight_grams, absorption_type."
+            ),
             },
             {
             "type": "image_url",
@@ -38,7 +47,7 @@ def classify_image(image_file:str) -> dict:
         ],
         }
     ],
-    max_tokens=300,
+    max_tokens=600,
     )
     sleep(WAIT_TIME_OPEANAI_API)
     output_json = extract_json_from_openai(response)

@@ -8,6 +8,9 @@ CREATE TABLE IF NOT EXISTS food_register (
     glycemic_index INT,
     original_glycemic_index INT,
     weight_grams INT,
+    carbohydrate_percentage DECIMAL(5,2),
+    carbohydrate_weight_grams DECIMAL(8,2),
+    absorption_type VARCHAR(10),
     verified BOOLEAN,
     PRIMARY KEY (uuid)
 );

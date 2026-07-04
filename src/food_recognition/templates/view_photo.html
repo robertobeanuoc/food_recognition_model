@@ -65,6 +65,9 @@
                 <th>Food Type</th>
                 <th class="text-end">GI</th>
                 <th class="text-end">Weight (g)</th>
+                <th class="text-end">Carbs %</th>
+                <th class="text-end">Carbs (g)</th>
+                <th class="text-center">Absorption</th>
                 <th>Similar Food</th>
                 <th class="text-end">Sim. GI</th>
                 <th class="text-center">Verified</th>
@@ -106,6 +109,42 @@
                          value="{{ food_register['weight_grams'] }}"
                          class="form-control text-end"
                          onchange="markUpdated({{ loop.index }})">
+                </td>
+
+                <!-- Carbohydrate percentage (read-only) -->
+                <td class="text-end text-muted" style="font-size:.8125rem;">
+                  {% if food_register['carbohydrate_percentage'] is not none %}
+                    {{ "%.1f"|format(food_register['carbohydrate_percentage']) }}&nbsp;%
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+
+                <!-- Carbohydrate weight (read-only) -->
+                <td class="text-end text-muted" style="font-size:.8125rem;">
+                  {% set cp = food_register['carbohydrate_percentage'] %}
+                  {% set wg = food_register['weight_grams'] %}
+                  {% if cp is not none and wg is not none %}
+                    {{ "%.1f"|format((cp|float) * (wg|float) / 100) }}&nbsp;g
+                  {% elif food_register['carbohydrate_weight_grams'] is not none %}
+                    {{ "%.1f"|format(food_register['carbohydrate_weight_grams']) }}&nbsp;g
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+
+                <!-- Absorption type (read-only) -->
+                <td class="text-center">
+                  {% set gi = food_register['glycemic_index'] %}
+                  {% if gi is not none %}
+                    {% if gi < 55 %}
+                      <span class="gi-badge gi-low">Slow</span>
+                    {% else %}
+                      <span class="gi-badge gi-high">Fast</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
                 </td>
 
                 <!-- Similar food (read-only) -->
