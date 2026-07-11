@@ -40,6 +40,8 @@ Tests live in `src/test/` and require a live MySQL database and a valid `OPENAI_
 cd src && python -m pytest test/
 ```
 
+`test/test_db.py` exercises `insert_food_type`/`update_food_register`/`delete_food_register` against the real database but is non-destructive: `test/conftest.py` wraps each test in one DB transaction (sessions are bound to a shared connection with `join_transaction_mode="create_savepoint"`, so each function's internal `session.commit()` only releases a SAVEPOINT) and rolls the whole thing back at teardown — no row is ever actually persisted.
+
 ## Initialising the database schema
 
 ```bash
@@ -72,7 +74,8 @@ Reads `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` from the environment.
 | `src/main.py` | Entry point; all HTTP routes |
 | `src/food_recognition/food_classification.py` | GPT-4o vision call; returns classified food list |
 | `src/food_recognition/similar_food.py` | GPT-4o text call; maps a free-text food name to the reference `glycemic_index` table |
-| `src/food_recognition/db.py` | All MySQL queries (no ORM; raw `mysql-connector-python`) |
+| `src/food_recognition/db.py` | All MySQL queries via SQLAlchemy ORM (engine + pooled sessions, `mysql+mysqlconnector` dialect) |
+| `src/food_recognition/db_models.py` | SQLAlchemy declarative models (`FoodRegister`, `GlycemicIndex`) mapping the existing tables |
 | `src/food_recognition/utils.py` | Shared logger (`app_logger`) and `extract_json_from_openai()` parser |
 | `src/food_recognition/constants.py` | `SIMILAR_JINJA2_TEMPLATE` path and `WAIT_TIME_OPEANAI_API` |
 
@@ -99,6 +102,5 @@ Reads `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` from the environment.
 
 ### Known issues / watch-outs
 
-- `db.py` builds SQL with f-strings throughout — no parameterized queries. Any new DB code should use `%s` placeholders with `cursor.execute(query, params)`.
 - `similar_food.py` makes two OpenAI calls **per food item** on every `/view_photo` load; there is no caching.
 - `update_food_register` in `main.py` is called with keyword argument `file_uid=` but the function signature uses `uuid=` — the two call sites use different parameter names; verify carefully when editing that function.
