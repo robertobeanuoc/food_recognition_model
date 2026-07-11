@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Food Analysis – {{ created_at }}{% endblock %}
+{% block title %}Food Analysis – {{ created_at|local_dt('%Y-%m-%d %H:%M:%S') if created_at else '' }}{% endblock %}
 
 {% block head %}
 <!-- Select2 -->
@@ -22,7 +22,7 @@
     </nav>
     <h1>Food Analysis</h1>
     {% if created_at %}
-    <p class="text-muted">Captured on {{ created_at }}</p>
+    <p class="text-muted">Captured on {{ created_at|local_dt('%Y-%m-%d %H:%M:%S') }}</p>
     {% endif %}
   </div>
 
@@ -63,6 +63,7 @@
               <tr>
                 <th title="Changed">Chg</th>
                 <th>Food Type</th>
+                <th>Meal</th>
                 <th class="text-end">GI</th>
                 <th class="text-end">Weight (g)</th>
                 <th class="text-end">Carbs %</th>
@@ -93,6 +94,16 @@
                     {% endfor %}
                   </select>
                   <input type="hidden" id="uuid_{{ loop.index }}" value="{{ food_register['uuid'] }}">
+                </td>
+
+                <!-- Meal type selector (editable) -->
+                <td>
+                  <select id="meal_type_{{ loop.index }}" class="form-select"
+                          onchange="markUpdated({{ loop.index }})">
+                    {% for meal_type in meal_types %}
+                    <option value="{{ meal_type }}" {% if meal_type == food_register['meal_type'] %}selected{% endif %}>{{ meal_type|capitalize }}</option>
+                    {% endfor %}
+                  </select>
                 </td>
 
                 <!-- Glycemic index (editable) -->
