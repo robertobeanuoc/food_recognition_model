@@ -4,7 +4,7 @@ import pytz
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-from food_recognition.db_models import Base, FoodRegister, GlycemicIndex, MealSchedule, MealType
+from food_recognition.db_models import Base, FoodCharacteristics, FoodRegister, MealSchedule, MealType
 from food_recognition.utils import app_logger
 
 
@@ -131,6 +131,38 @@ def _classify_meal_type(created_at: datetime.datetime) -> str:
     return get_meal_type_for_time(time_of_day=created_at.time(), is_weekend=is_weekend)
 
 
+def _ensure_food_characteristics(
+    food_type: str,
+    glycemic_index: int = None,
+    carbohydrate_percentage: float = None,
+    absorption_type: str = None,
+) -> None:
+    """Add food_type to food_characteristics if the LLM just classified a food
+    that isn't in the reference table yet, so that knowledge accumulates over
+    time instead of being lost. Never overwrites an existing row — those may
+    have been curated by hand from the /food_characteristics UI.
+    """
+    with _SessionFactory() as session:
+        exists = (
+            session.query(FoodCharacteristics.food_type)
+            .filter(FoodCharacteristics.food_type == food_type)
+            .first()
+        )
+        if exists:
+            return
+
+        session.add(
+            FoodCharacteristics(
+                food_type=food_type,
+                glycemic_index=glycemic_index,
+                carbohydrate_percentage=carbohydrate_percentage,
+                absorption_type=absorption_type,
+            )
+        )
+        app_logger.info(f"Added '{food_type}' to food_characteristics")
+        session.commit()
+
+
 def insert_food_type(
     file_uid: str,
     food_type: str,
@@ -146,6 +178,13 @@ def insert_food_type(
         created_at = utcnow()
     if meal_type is None:
         meal_type = _classify_meal_type(created_at)
+
+    _ensure_food_characteristics(
+        food_type=food_type,
+        glycemic_index=glycemic_index,
+        carbohydrate_percentage=carbohydrate_percentage,
+        absorption_type=absorption_type,
+    )
 
     with _SessionFactory() as session:
         app_logger.info("Connected to the database")
@@ -235,14 +274,10 @@ def get_food_types(food_type: str = "") -> list[dict]:
     with _SessionFactory() as session:
         app_logger.info("Connected to the database")
 
-        query = session.query(
-            GlycemicIndex.food_type,
-            GlycemicIndex.food_type_es,
-            GlycemicIndex.glycemic_index,
-        )
+        query = session.query(FoodCharacteristics)
         if food_type:
-            query = query.filter(GlycemicIndex.food_type == food_type)
-        query = query.order_by(GlycemicIndex.food_type)
+            query = query.filter(FoodCharacteristics.food_type == food_type)
+        query = query.order_by(FoodCharacteristics.food_type)
         app_logger.info(f"Query: {query}")
 
         records = query.all()
@@ -253,6 +288,8 @@ def get_food_types(food_type: str = "") -> list[dict]:
                 "food_type": record.food_type,
                 "food_type_es": record.food_type_es,
                 "glycemic_index": record.glycemic_index,
+                "carbohydrate_percentage": record.carbohydrate_percentage,
+                "absorption_type": record.absorption_type,
             }
             for record in records
         ]
@@ -312,8 +349,8 @@ def get_glycemic_index(food_type: str) -> int:
     with _SessionFactory() as session:
         app_logger.info("Connected to the database")
 
-        query = session.query(GlycemicIndex.glycemic_index).filter(
-            GlycemicIndex.food_type == food_type
+        query = session.query(FoodCharacteristics.glycemic_index).filter(
+            FoodCharacteristics.food_type == food_type
         )
         app_logger.info(f"Query: {query}")
 
@@ -333,8 +370,8 @@ def get_food_types_list(food_type: str = "") -> list[str]:
     with _SessionFactory() as session:
         app_logger.info("Connected to the database")
 
-        query = session.query(GlycemicIndex.food_type).order_by(
-            GlycemicIndex.food_type
+        query = session.query(FoodCharacteristics.food_type).order_by(
+            FoodCharacteristics.food_type
         )
         app_logger.info(f"Query: {query}")
 
@@ -349,6 +386,40 @@ def get_food_types_list(food_type: str = "") -> list[str]:
     app_logger.info("Connection closed")
     app_logger.info("Records fetched")
     return ",".join(ret_records)
+
+
+def update_food_characteristics(
+    food_type: str,
+    food_type_es: str = None,
+    glycemic_index: int = None,
+    carbohydrate_percentage: float = None,
+    absorption_type: str = None,
+) -> None:
+    values: dict = {}
+    if food_type_es != None and food_type_es != "":
+        values["food_type_es"] = food_type_es
+    if glycemic_index != None:
+        values["glycemic_index"] = glycemic_index
+    if carbohydrate_percentage != None:
+        values["carbohydrate_percentage"] = carbohydrate_percentage
+    if absorption_type != None and absorption_type != "":
+        values["absorption_type"] = absorption_type
+
+    if not values:
+        return
+
+    with _SessionFactory() as session:
+        app_logger.info("Connected to the database")
+
+        session.query(FoodCharacteristics).filter(
+            FoodCharacteristics.food_type == food_type
+        ).update(values, synchronize_session=False)
+        app_logger.info("Record updated successfully")
+
+        session.commit()
+        app_logger.info("Changes committed")
+
+    app_logger.info("Connection closed")
 
 
 def update_verfied(

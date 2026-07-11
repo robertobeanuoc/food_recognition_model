@@ -8,7 +8,7 @@ import os
 import pytz
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
-from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register, delete_food_register, sync_schema, get_meal_schedule, update_meal_schedule, get_meal_types, utcnow
+from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register, delete_food_register, sync_schema, get_meal_schedule, update_meal_schedule, get_meal_types, utcnow, get_food_types, update_food_characteristics
 from food_recognition.similar_food import add_similar_food_info_to_food
 import json
 import uuid
@@ -271,6 +271,35 @@ def api_update_meal_schedule(uuid: str):
     end_time = _local_time_to_utc(local_end_time, user_tz)
 
     update_meal_schedule(uuid=uuid, start_time=start_time, end_time=end_time)
+    return {"status": "ok"}
+
+
+@app.route('/food_characteristics', methods=['GET'])
+def food_characteristics():
+    food_types: list[dict] = get_food_types()
+    return render_template('food_characteristics.html', food_types=food_types)
+
+
+@app.route('/update_food_characteristics/<food_type>', methods=['POST'])
+def api_update_food_characteristics(food_type: str):
+    validate_food_type(food_type)
+    app_logger.info(f"Updating food_characteristics for {food_type} ..")
+
+    glycemic_index_value: int = None
+    if request.form.get('glycemic_index'):
+        glycemic_index_value = int(request.form['glycemic_index'])
+
+    carbohydrate_percentage: float = None
+    if request.form.get('carbohydrate_percentage'):
+        carbohydrate_percentage = float(request.form['carbohydrate_percentage'])
+
+    update_food_characteristics(
+        food_type=food_type,
+        food_type_es=request.form.get('food_type_es'),
+        glycemic_index=glycemic_index_value,
+        carbohydrate_percentage=carbohydrate_percentage,
+        absorption_type=request.form.get('absorption_type'),
+    )
     return {"status": "ok"}
 
 

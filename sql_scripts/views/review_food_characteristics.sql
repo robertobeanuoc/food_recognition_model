@@ -9,7 +9,7 @@ select
 	from food_register fr 
 
 	-- left outer
-	join glycemic_index gi on gi.food_type = fr.food_type
+	join food_characteristics gi on gi.food_type = fr.food_type
 	
 	group by 
 	fr.food_type,
