@@ -15,12 +15,14 @@ function updateVerified(uuid, verified) {
     })
 }
 
-function updateFoodRegister(index) 
+function updateFoodRegister(index)
 {
     var foodType = document.getElementById('food_type_' + index).value;
     var glycemicIndex = document.getElementById('glycemic_index_' + index).value;
     var weightGrams = document.getElementById('weight_grams_' + index).value;
     var carbohydratePercentage = document.getElementById('carbohydrate_percentage_' + index).value;
+    var mealTypeInput = document.getElementById('meal_type_' + index);
+    var mealType = mealTypeInput ? mealTypeInput.value : '';
     var uuid = document.getElementById('uuid_' + index).value;
     var verified = document.getElementById('verified_' + index).checked ? 1 : 0;
 
@@ -29,9 +31,17 @@ function updateFoodRegister(index)
 
     console.log('foodType:', foodType, "glycemicIndex:", glycemicIndex, "uuid:", uuid);
 
-    let url = '/update_food_register/'+ uuid + "/" +  foodType + '/' + glycemicIndex + "/" + weightGrams + "/" + verified;
+    let url = '/update_food_register/'+ uuid + "/" +  encodeURIComponent(foodType) + '/' + glycemicIndex + "/" + weightGrams + "/" + verified;
+    let params = new URLSearchParams();
     if (carbohydratePercentage !== '') {
-        url += '?carbohydrate_percentage=' + encodeURIComponent(carbohydratePercentage);
+        params.append('carbohydrate_percentage', carbohydratePercentage);
+    }
+    if (mealType !== '') {
+        params.append('meal_type', mealType);
+    }
+    let queryString = params.toString();
+    if (queryString) {
+        url += '?' + queryString;
     }
     fetch(url, {
         method: 'GET',

@@ -4,6 +4,19 @@ from sqlalchemy.orm import sessionmaker
 import food_recognition.db as db
 
 
+@pytest.fixture(autouse=True, scope="session")
+def _synced_schema():
+    """Make sure every table (incl. meal_schedule) exists before any test runs.
+
+    db.sync_schema() issues CREATE TABLE / DROP TRIGGER statements, which
+    MySQL always auto-commits — that can't be wrapped in the SAVEPOINT/rollback
+    trick below, so it intentionally runs once, outside of it. It's safe to
+    call repeatedly: create_all() and the seed helpers are no-ops once the
+    tables exist and are populated.
+    """
+    db.sync_schema()
+
+
 @pytest.fixture(autouse=True)
 def db_transaction(monkeypatch):
     """Run each test inside a single DB transaction that is always rolled back.

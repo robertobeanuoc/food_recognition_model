@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}NutriScan – Meal Schedule{% endblock %}
+{% block nav_schedule %}active{% endblock %}
+
+{% block content %}
+<div class="container-app">
+
+  <!-- ── Page heading ─────────────────────────────────────────── -->
+  <div class="page-heading d-flex align-items-start justify-content-between flex-wrap gap-2 mb-4">
+    <div>
+      <h1>Meal Schedule</h1>
+      <p class="text-muted">Habitual time range for each meal, split by weekday and weekend.</p>
+    </div>
+  </div>
+
+  <!-- ── Schedule card ─────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <span class="section-title"><i class="bi bi-clock-history me-2 text-muted"></i>Habitual Ranges</span>
+      <span class="badge rounded-pill" style="background:#f1f5f9; color:#475569; font-size:.75rem; font-weight:600;">
+        {{ meal_schedule_rows|length }} row{{ 's' if meal_schedule_rows|length != 1 }}
+      </span>
+    </div>
+
+    {% if meal_schedule_rows %}
+    <div class="table-responsive">
+      <table class="table app-table mb-0">
+        <thead>
+          <tr>
+            <th title="Changed">Chg</th>
+            <th>Meal Type</th>
+            <th class="text-center">Day</th>
+            <th class="text-end">Start Time</th>
+            <th class="text-end">End Time</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in meal_schedule_rows %}
+          <tr>
+
+            <!-- Change indicator -->
+            <td>
+              <input id="updated_{{ loop.index }}" type="text" value="" disabled
+                     class="updated-indicator form-control">
+            </td>
+
+            <!-- Meal type (read-only) -->
+            <td class="fw-medium text-capitalize">
+              {{ row['meal_type'] }}
+              <input type="hidden" id="uuid_{{ loop.index }}" value="{{ row['uuid'] }}">
+            </td>
+
+            <!-- Weekday / Weekend badge -->
+            <td class="text-center">
+              {% if row['is_weekend'] %}
+                <span class="gi-badge gi-medium">Weekend</span>
+              {% else %}
+                <span class="gi-badge gi-low">Weekday</span>
+              {% endif %}
+            </td>
+
+            <!-- Start time (editable) -->
+            <td class="text-end">
+              <input type="time" id="start_time_{{ loop.index }}"
+                     value="{{ row['start_time'].strftime('%H:%M') }}"
+                     class="form-control text-end"
+                     onchange="markUpdated({{ loop.index }})">
+            </td>
+
+            <!-- End time (editable) -->
+            <td class="text-end">
+              <input type="time" id="end_time_{{ loop.index }}"
+                     value="{{ row['end_time'].strftime('%H:%M') }}"
+                     class="form-control text-end"
+                     onchange="markUpdated({{ loop.index }})">
+            </td>
+
+            <!-- Save action -->
+            <td class="text-center">
+              <div class="d-flex gap-1 justify-content-center">
+                <button id="update_meal_schedule{{ loop.index }}"
+                        class="btn btn-save btn-outline-success"
+                        onclick="updateMealSchedule({{ loop.index }})"
+                        title="Save changes">
+                  <i class="bi bi-floppy" style="font-size:.875rem;"></i>
+                </button>
+              </div>
+            </td>
+
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+      <i class="bi bi-exclamation-circle"></i>
+      <p>No meal schedule ranges configured.</p>
+    </div>
+    {% endif %}
+
+  </div>
+  <!-- /Schedule card -->
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function markUpdated(index) {
+    document.getElementById('updated_' + index).value = '*';
+  }
+</script>
+<script src="{{ url_for('static', filename='js/meal_schedule.js') }}"></script>
+{% endblock %}

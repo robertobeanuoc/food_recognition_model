@@ -5,6 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}NutriScan{% endblock %}</title>
 
+  <script>
+    // Tell the server what timezone to render dates/times in (all timestamps
+    // are stored in the database as UTC — see `local_dt` filter in main.py).
+    // Takes effect from the next request onward.
+    (function () {
+      try {
+        var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (tz) {
+          document.cookie = "tz=" + tz + ";path=/;max-age=31536000;samesite=lax";
+        }
+      } catch (e) {}
+    })();
+  </script>
+
   <!-- Bootstrap 5 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Bootstrap Icons -->
@@ -42,6 +56,11 @@
           <li class="nav-item">
             <a class="nav-link {% block nav_meals %}{% endblock %}" href="{{ url_for('meals') }}">
               <i class="bi bi-journal-text me-1"></i>Meals
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% block nav_schedule %}{% endblock %}" href="{{ url_for('meal_schedule') }}">
+              <i class="bi bi-clock-history me-1"></i>Schedule
             </a>
           </li>
         </ul>

@@ -5,9 +5,10 @@ from flask import Flask, session ,render_template, request, redirect, url_for, B
 import cv2
 import numpy as np
 import os
+import pytz
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
-from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register, delete_food_register
+from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register, delete_food_register, sync_schema, get_meal_schedule, update_meal_schedule, get_meal_types, utcnow
 from food_recognition.similar_food import add_similar_food_info_to_food
 import json
 import uuid
@@ -28,6 +29,52 @@ app.config["SECRET_KEY"] = app.secret_key
 UPLOAD_FOLDER:str = 'food_recognition/static/uploads'
 
 Session(app)
+
+# Sync the DB schema with the current SQLAlchemy models (creates any missing
+# tables, e.g. meal_schedule) as soon as the app connects to the database.
+sync_schema()
+
+
+def get_request_timezone() -> datetime.tzinfo:
+    """Resolve the browser timezone captured by the `tz` cookie (see base.html).
+
+    All datetimes are stored in the database as naive UTC. Falls back to UTC
+    if the cookie is missing (e.g. first request of a session, before the
+    page's JS has had a chance to set it) or holds an unrecognised value.
+    """
+    tz_name: str = request.cookies.get('tz', 'UTC')
+    try:
+        return pytz.timezone(tz_name)
+    except pytz.exceptions.UnknownTimeZoneError:
+        return pytz.utc
+
+
+@app.template_filter('local_dt')
+def local_dt_filter(value: datetime.datetime, fmt: str = '%Y-%m-%d %H:%M') -> str:
+    """Render a naive-UTC datetime in the requesting browser's timezone."""
+    if value is None:
+        return ''
+    utc_value: datetime.datetime = pytz.utc.localize(value) if value.tzinfo is None else value
+    return utc_value.astimezone(get_request_timezone()).strftime(fmt)
+
+
+def _utc_time_to_local(value: datetime.time, tz: datetime.tzinfo) -> datetime.time:
+    """Convert a bare UTC time-of-day (e.g. meal_schedule.start_time) to local.
+
+    TIME columns have no date, so today's date is used as an arbitrary
+    reference to resolve the UTC offset (relevant around DST transitions).
+    """
+    reference_date: datetime.date = datetime.date.today()
+    utc_dt: datetime.datetime = pytz.utc.localize(datetime.datetime.combine(reference_date, value))
+    return utc_dt.astimezone(tz).time()
+
+
+def _local_time_to_utc(value: datetime.time, tz: datetime.tzinfo) -> datetime.time:
+    """Inverse of `_utc_time_to_local` — convert a browser-local time-of-day to UTC for storage."""
+    reference_date: datetime.date = datetime.date.today()
+    local_dt: datetime.datetime = tz.localize(datetime.datetime.combine(reference_date, value))
+    return local_dt.astimezone(pytz.utc).time()
+
 
 @app.route('/')
 def index():
@@ -66,6 +113,10 @@ def upload():
 
     app_logger.info("Classifying the image ..")
     food_types:list[dict] = classify_image(file_image)
+    # Computed once and shared across every item in this photo, so they all
+    # get the exact same created_at (and therefore the same auto-classified
+    # meal_type) instead of drifting a few milliseconds apart per insert.
+    created_at: datetime.datetime = utcnow()
     for food_type in food_types:
         insert_food_type(
             file_uid=uuid_img,
@@ -75,6 +126,7 @@ def upload():
             carbohydrate_percentage=food_type.get('carbohydrate_percentage'),
             carbohydrate_weight_grams=food_type.get('carbohydrate_weight_grams'),
             absorption_type=food_type.get('absorption_type'),
+            created_at=created_at,
         )
 
     file_json:str = os.path.join(UPLOAD_FOLDER,f"{uuid_img}.json")
@@ -137,6 +189,8 @@ def api_update_food_register(uuid:str, food_type:str, glycemic_index:int, weight
         carbohydrate_percentage = float(request.args['carbohydrate_percentage'])
         carbohydrate_weight_grams = carbohydrate_percentage * weight_grams / 100
 
+    meal_type: str = request.args.get('meal_type') or None
+
     update_food_register(
         uuid=uuid,
         food_type=food_type,
@@ -145,6 +199,7 @@ def api_update_food_register(uuid:str, food_type:str, glycemic_index:int, weight
         verified=verified,
         carbohydrate_percentage=carbohydrate_percentage,
         carbohydrate_weight_grams=carbohydrate_weight_grams,
+        meal_type=meal_type,
     )
     #TODO return to the previus page
     return redirect(url_for('meals'))
@@ -160,26 +215,63 @@ def api_delete_food_register(uuid: str):
 
 @app.route('/view_photo/<file_uid>', methods=['GET'])
 def view_photo(file_uid:str):
-    created_at:str = ""
+    created_at: datetime.datetime = None
     validate_uuid(file_uid)
     food_registers: list[dict] = get_food_registers(file_uid=file_uid)
     food_registers = add_similar_food_info_to_food(food_registers=food_registers)
     if len(food_registers) != 0:
-        created_at: str = food_registers[0]['created_at'].strftime('%Y-%m-%d %H:%M:%S')
-    return render_template('view_photo.html', uuid_img=file_uid,food_registers=food_registers, created_at=created_at )
+        created_at = food_registers[0]['created_at']
+    meal_types: list[str] = get_meal_types()
+    return render_template('view_photo.html', uuid_img=file_uid,food_registers=food_registers, created_at=created_at, meal_types=meal_types )
 
 @app.route('/meals', methods=['GET','POST'])
 def meals():
+    user_tz: datetime.tzinfo = get_request_timezone()
+
     start_date: str = ""
     if 'datepicker' in request.form:
         start_date = request.form['datepicker']
-    filter_start_date:datetime.date = datetime.date.today()
+    filter_start_date: datetime.date
     if start_date:
         filter_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
     else:
-        filter_start_date = filter_start_date - datetime.timedelta(days=int(os.getenv("DEFAULT_DAYS")))
-    food_registers: list[dict] = get_food_registers(start_date=filter_start_date) 
+        today_local: datetime.date = datetime.datetime.now(tz=user_tz).date()
+        filter_start_date = today_local - datetime.timedelta(days=int(os.getenv("DEFAULT_DAYS")))
+
+    # The date picker is a plain calendar date in the user's local timezone;
+    # convert local midnight of that date to UTC before filtering, since
+    # created_at is stored as naive UTC.
+    local_midnight: datetime.datetime = user_tz.localize(datetime.datetime.combine(filter_start_date, datetime.time.min))
+    start_datetime_utc: datetime.datetime = local_midnight.astimezone(pytz.utc).replace(tzinfo=None)
+
+    food_registers: list[dict] = get_food_registers(start_date=start_datetime_utc)
     return render_template('meals.html', food_registers=food_registers, start_date=filter_start_date)
+
+
+@app.route('/meal_schedule', methods=['GET'])
+def meal_schedule():
+    user_tz: datetime.tzinfo = get_request_timezone()
+    meal_schedule_rows: list[dict] = get_meal_schedule()
+    for row in meal_schedule_rows:
+        row['start_time'] = _utc_time_to_local(row['start_time'], user_tz)
+        row['end_time'] = _utc_time_to_local(row['end_time'], user_tz)
+    return render_template('meal_schedule.html', meal_schedule_rows=meal_schedule_rows)
+
+
+@app.route('/update_meal_schedule/<uuid>', methods=['POST'])
+def api_update_meal_schedule(uuid: str):
+    validate_uuid(uuid)
+    app_logger.info(f"Updating meal_schedule for {uuid} ..")
+
+    user_tz: datetime.tzinfo = get_request_timezone()
+    local_start_time = datetime.datetime.strptime(request.form['start_time'], '%H:%M').time()
+    local_end_time = datetime.datetime.strptime(request.form['end_time'], '%H:%M').time()
+
+    start_time = _local_time_to_utc(local_start_time, user_tz)
+    end_time = _local_time_to_utc(local_end_time, user_tz)
+
+    update_meal_schedule(uuid=uuid, start_time=start_time, end_time=end_time)
+    return {"status": "ok"}
 
 
 @app.route('/glycemic_index/<food_type>', methods=['GET'])

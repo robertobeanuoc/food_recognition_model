@@ -112,6 +112,19 @@ body {
 .gi-medium { background: #fef9c3; color: #854d0e; }
 .gi-high   { background: #fee2e2; color: #991b1b; }
 
+/* ── Meal type badge ──────────────────────────────────────────── */
+.meal-type-badge {
+  display: inline-block;
+  padding: .2em .55em;
+  border-radius: .375rem;
+  font-size: .75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
 /* ── Data tables ──────────────────────────────────────────────── */
 .app-table {
   font-size: .875rem;
