@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project is
 
-A Flask web app that accepts a food photo, classifies it via OpenAI GPT-4o vision, persists results to MySQL, and enriches each classification by finding the closest matching food from a reference glycemic-index table (also via GPT-4o).
+A Flask web app that accepts a food photo, classifies it via OpenAI GPT-4o vision, persists results to MySQL, and enriches each classification by finding the closest matching food from a reference food-characteristics table (also via GPT-4o).
 
 ## Running locally (no Docker)
 
@@ -49,16 +49,19 @@ The schema is created/synced automatically: `db.sync_schema()` runs once at app 
 This is **not** a migration tool — it only creates tables that don't exist yet; it never alters or drops existing tables/columns. The `sql_scripts/tables/*.sql` files are kept as human-readable schema documentation and a manual fallback:
 
 ```bash
-mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < sql_scripts/tables/glycemic_index.sql
+mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < sql_scripts/tables/food_characteristics.sql
 mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < sql_scripts/tables/meal_type.sql
 mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < sql_scripts/tables/meal_schedule.sql
 mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < sql_scripts/tables/food_register.sql
 ```
 
-An **existing** database (one that already had `food_register` before `meal_type` was added to it) needs the one-off migration instead, which adds the column and backfills existing rows:
+An **existing** database needs one-off migrations instead:
 
 ```bash
+# food_register.meal_type (adds the column and backfills existing rows)
 mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < sql_scripts/migrations/add_meal_type_to_food_register.sql
+# renames glycemic_index -> food_characteristics and adds carbohydrate_percentage/absorption_type
+mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < sql_scripts/migrations/rename_glycemic_index_to_food_characteristics.sql
 ```
 
 ## Database backup
@@ -77,7 +80,7 @@ Reads `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` from the environment.
 2. `food_classification.py:classify_image()` — base64-encodes the image and sends it to GPT-4o vision. Returns a JSON array: `[{food_type, glycemic_index, weight_grams}, ...]`.
 3. Each item is inserted into `food_register` via `db.py:insert_food_type()`. The image and a companion `.json` file are copied to `PHOTO_FOLDER`.
 4. Redirect to `GET /view_photo/<file_uid>` — fetches all rows for that `file_uid` and calls `add_similar_food_info_to_food()`.
-5. `similar_food.py:add_similar_food_info_to_food()` — for **each** food item makes **two** GPT-4o calls: one to find the closest food in the `glycemic_index` reference table (via a Jinja2 prompt), and then reads the matched glycemic index from DB. This can be slow for photos with many food types.
+5. `similar_food.py:add_similar_food_info_to_food()` — for **each** food item makes **two** GPT-4o calls: one to find the closest food in the `food_characteristics` reference table (via a Jinja2 prompt), and then reads the matched glycemic index from DB. This can be slow for photos with many food types.
 
 ### Key modules
 
@@ -85,16 +88,16 @@ Reads `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` from the environment.
 |---|---|
 | `src/main.py` | Entry point; all HTTP routes |
 | `src/food_recognition/food_classification.py` | GPT-4o vision call; returns classified food list |
-| `src/food_recognition/similar_food.py` | GPT-4o text call; maps a free-text food name to the reference `glycemic_index` table |
+| `src/food_recognition/similar_food.py` | GPT-4o text call; maps a free-text food name to the reference `food_characteristics` table |
 | `src/food_recognition/db.py` | All MySQL queries via SQLAlchemy ORM (engine + pooled sessions, `mysql+mysqlconnector` dialect); also `sync_schema()`, the programmatic schema-sync entry point |
-| `src/food_recognition/db_models.py` | SQLAlchemy declarative models (`FoodRegister`, `GlycemicIndex`, `MealType`, `MealSchedule`) mapping the existing tables |
+| `src/food_recognition/db_models.py` | SQLAlchemy declarative models (`FoodRegister`, `FoodCharacteristics`, `MealType`, `MealSchedule`) mapping the existing tables |
 | `src/food_recognition/utils.py` | Shared logger (`app_logger`) and `extract_json_from_openai()` parser |
 | `src/food_recognition/constants.py` | `SIMILAR_JINJA2_TEMPLATE` path and `WAIT_TIME_OPEANAI_API` |
 
 ### Database tables
 
-- **`food_register`** — one row per food type per image. `file_uid` groups all rows for the same photo; `uuid` is the per-row PK, generated client-side by the ORM (`default=` on `FoodRegister.uuid` in `db_models.py`). `meal_type` is a foreign key into `meal_type`, auto-classified at insert time from `meal_schedule` (`db.py:_classify_meal_type()`/`get_meal_type_for_time()`) — falls back to `'other'` if `created_at` doesn't fall inside any configured range. Editable afterwards from `/view_photo/<file_uid>` like any other field.
-- **`glycemic_index`** — reference table: `food_type` (EN), `food_type_es` (ES), `glycemic_index`.
+- **`food_register`** — one row per food type per image (per served portion). `file_uid` groups all rows for the same photo; `uuid` is the per-row PK, generated client-side by the ORM (`default=` on `FoodRegister.uuid` in `db_models.py`). `meal_type` is a foreign key into `meal_type`, auto-classified at insert time from `meal_schedule` (`db.py:_classify_meal_type()`/`get_meal_type_for_time()`) — falls back to `'other'` if `created_at` doesn't fall inside any configured range. Editable afterwards from `/view_photo/<file_uid>` like any other field.
+- **`food_characteristics`** — reference table of per-food-type nutritional characteristics (formerly named `glycemic_index`): `food_type` (EN, primary key), `food_type_es` (ES), `glycemic_index`, `carbohydrate_percentage`, `absorption_type`. `db.py:_ensure_food_characteristics()` inserts a new row automatically whenever `insert_food_type()` sees a `food_type` not already present — using whatever the LLM classified for it — but never overwrites an existing row. Editable from the UI at `/food_characteristics`.
 - **`meal_type`** — reference table of valid meal types (`breakfast` | `lunch` | `dinner` | `other`, English canonical values). `meal_type` (the string itself) is the primary key, so other tables reference it by natural key rather than by a surrogate id — that relationship stays meaningful and intact across migrations/restores, independent of any auto-increment id. `'other'` is the fallback for `food_register` rows outside every `meal_schedule` range — it's deliberately excluded from `meal_schedule` itself (`db.py:_seed_meal_type()`).
 - **`meal_schedule`** — the habitual time range (`start_time`–`end_time`) for each `meal_type`, split by `is_weekend`. `uuid` is the per-row PK (same client-side generation pattern as `food_register`); `meal_type` is a foreign key into `meal_type`; `UNIQUE(meal_type, is_weekend)` allows at most one range per combination (6 rows total). Seeded with default ranges by `db.sync_schema()` if empty. Editable from the UI at `/meal_schedule`. Used to auto-classify `food_register.meal_type` at insert time — see `db.py:get_meal_type_for_time()`.
 

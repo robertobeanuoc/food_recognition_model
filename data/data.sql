@@ -1,4 +1,4 @@
-INSERT INTO `glycemic_index` (`food_type`, `food_type_es`, `glycemic_index`) VALUES
+INSERT INTO `food_characteristics` (`food_type`, `food_type_es`, `glycemic_index`) VALUES
 -- Cereales y Granos
 ('Barley, pearled, boiled', 'Cebada perlada hervida', 28),
 ('Bulgur, boiled', 'Burgol/Trigo burgol hervido', 46),

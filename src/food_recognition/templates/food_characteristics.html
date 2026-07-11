@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}NutriScan – Food Characteristics{% endblock %}
+{% block nav_food_characteristics %}active{% endblock %}
+
+{% block content %}
+<div class="container-app">
+
+  <!-- ── Page heading ─────────────────────────────────────────── -->
+  <div class="page-heading d-flex align-items-start justify-content-between flex-wrap gap-2 mb-4">
+    <div>
+      <h1>Food Characteristics</h1>
+      <p class="text-muted">Reference nutritional characteristics per food type. New food types are added here automatically the first time they're identified from a photo.</p>
+    </div>
+  </div>
+
+  <!-- ── Table card ────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <span class="section-title"><i class="bi bi-clipboard-data me-2 text-muted"></i>Food Types</span>
+      <span class="badge rounded-pill" style="background:#f1f5f9; color:#475569; font-size:.75rem; font-weight:600;">
+        {{ food_types|length }} row{{ 's' if food_types|length != 1 }}
+      </span>
+    </div>
+
+    {% if food_types %}
+    <div class="table-responsive">
+      <table class="table app-table mb-0">
+        <thead>
+          <tr>
+            <th title="Changed">Chg</th>
+            <th>Food Type</th>
+            <th>Food Type (ES)</th>
+            <th class="text-end">Glycemic Index</th>
+            <th class="text-end">Carbs %</th>
+            <th class="text-center">Absorption</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for food in food_types %}
+          <tr>
+
+            <!-- Change indicator -->
+            <td>
+              <input id="updated_{{ loop.index }}" type="text" value="" disabled
+                     class="updated-indicator form-control">
+            </td>
+
+            <!-- Food type (read-only, it's the natural key) -->
+            <td class="fw-medium">
+              {{ food['food_type'] }}
+              <input type="hidden" id="food_type_{{ loop.index }}" value="{{ food['food_type'] }}">
+            </td>
+
+            <!-- Spanish name (editable) -->
+            <td>
+              <input type="text" id="food_type_es_{{ loop.index }}"
+                     value="{{ food['food_type_es'] or '' }}"
+                     class="form-control"
+                     onchange="markUpdated({{ loop.index }})">
+            </td>
+
+            <!-- Glycemic index (editable) -->
+            <td class="text-end">
+              <input type="number" id="glycemic_index_{{ loop.index }}"
+                     value="{{ food['glycemic_index'] if food['glycemic_index'] is not none else '' }}"
+                     class="form-control text-end"
+                     onchange="markUpdated({{ loop.index }})">
+            </td>
+
+            <!-- Carbohydrate percentage (editable) -->
+            <td class="text-end">
+              <input type="number" id="carbohydrate_percentage_{{ loop.index }}"
+                     value="{{ '%.1f'|format(food['carbohydrate_percentage']) if food['carbohydrate_percentage'] is not none else '' }}"
+                     step="0.1" min="0" max="100"
+                     class="form-control text-end"
+                     onchange="markUpdated({{ loop.index }})">
+            </td>
+
+            <!-- Absorption type (editable) -->
+            <td class="text-center">
+              <select id="absorption_type_{{ loop.index }}" class="form-select"
+                      onchange="markUpdated({{ loop.index }})">
+                <option value="" {% if not food['absorption_type'] %}selected{% endif %}>—</option>
+                <option value="slow" {% if food['absorption_type'] == 'slow' %}selected{% endif %}>Slow</option>
+                <option value="fast" {% if food['absorption_type'] == 'fast' %}selected{% endif %}>Fast</option>
+              </select>
+            </td>
+
+            <!-- Save action -->
+            <td class="text-center">
+              <div class="d-flex gap-1 justify-content-center">
+                <button id="update_food_characteristics{{ loop.index }}"
+                        class="btn btn-save btn-outline-success"
+                        onclick="updateFoodCharacteristics({{ loop.index }})"
+                        title="Save changes">
+                  <i class="bi bi-floppy" style="font-size:.875rem;"></i>
+                </button>
+              </div>
+            </td>
+
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+      <i class="bi bi-exclamation-circle"></i>
+      <p>No food types recorded yet.</p>
+    </div>
+    {% endif %}
+
+  </div>
+  <!-- /Table card -->
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function markUpdated(index) {
+    document.getElementById('updated_' + index).value = '*';
+  }
+</script>
+<script src="{{ url_for('static', filename='js/food_characteristics.js') }}"></script>
+{% endblock %}

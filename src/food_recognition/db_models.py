@@ -44,16 +44,20 @@ class FoodRegister(Base):
     verified = Column(Boolean)
 
 
-class GlycemicIndex(Base):
-    __tablename__ = "glycemic_index"
+class FoodCharacteristics(Base):
+    __tablename__ = "food_characteristics"
 
-    # The table has no real primary key in MySQL; food_type is marked as
-    # primary_key here only so SQLAlchemy's ORM can map the class. This
-    # table is read-only from the app, so no insert/update/delete relies
-    # on it being an actual unique key.
+    # Reference table of per-food-type nutritional characteristics (as
+    # opposed to food_register, which holds one row per served portion).
+    # food_type is the natural primary key. New rows are added automatically
+    # by db.py:_ensure_food_characteristics() whenever the LLM classifies a
+    # food_type not already present; existing rows are never overwritten by
+    # that path, only by an explicit edit from the /food_characteristics UI.
     food_type = Column(String(50), primary_key=True)
     food_type_es = Column(String(50))
     glycemic_index = Column(Integer)
+    carbohydrate_percentage = Column(DECIMAL(5, 2))
+    absorption_type = Column(String(10))
 
 
 class MealType(Base):
