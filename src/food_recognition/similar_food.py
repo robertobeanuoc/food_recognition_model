@@ -3,6 +3,7 @@ from time import sleep
 from openai import OpenAI
 from food_recognition.utils import app_logger, extract_json_from_openai
 import os
+from food_recognition import vault_client
 from food_recognition.db import get_food_types, get_food_types_list, get_glycemic_index
 from jinja2 import Template
 from food_recognition.constants import SIMILAR_JINJA2_TEMPLATE, WAIT_TIME_OPEANAI_API
@@ -28,7 +29,7 @@ def find_similar_food(food_type:str) -> str:
         if food['glycemic_index'] and food['glycemic_index'] >0:
             csv_string += f"{food['food_type']},{food['food_type_es']}\n"
 
-    openai_api_key = os.getenv("OPENAI_API_KEY")
+    openai_api_key = vault_client.get_openai_secrets()["api_key"]
     client = OpenAI(api_key=openai_api_key)
     response = client.chat.completions.create(
     model="gpt-4o",

@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}NutriScan – Meal Defaults{% endblock %}
+{% block nav_meal_defaults %}active{% endblock %}
+
+{% block content %}
+<div class="container-app">
+
+  <!-- ── Page heading ─────────────────────────────────────────── -->
+  <div class="page-heading d-flex align-items-start justify-content-between flex-wrap gap-2 mb-4">
+    <div>
+      <h1>Meal Defaults</h1>
+      <p class="text-muted">
+        Habitual foods for each meal and day of week, used to pre-fill the Slack reminder form
+        when a meal isn't logged in time. A meal/day can have several ordered presets (1, 2, 3…) —
+        if the first has already been logged this week, the reminder proposes the next one instead.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── Add item card ─────────────────────────────────────────── -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <span class="section-title"><i class="bi bi-plus-circle me-2 text-muted"></i>Add food item</span>
+    </div>
+    <div class="card-body">
+      <div class="row g-2 align-items-end">
+        <div class="col-6 col-md-2">
+          <label class="form-label small text-muted">Meal type</label>
+          <select id="new_meal_type" class="form-select">
+            {% for meal_type in meal_types %}
+            <option value="{{ meal_type }}">{{ meal_type }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small text-muted">Day</label>
+          <select id="new_day_of_week" class="form-select">
+            {% for label in day_labels %}
+            <option value="{{ loop.index0 }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-4 col-md-1">
+          <label class="form-label small text-muted">Preset #</label>
+          <input type="number" id="new_preset_order" class="form-control" value="1" min="1">
+        </div>
+        <div class="col-4 col-md-1">
+          <label class="form-label small text-muted">Item #</label>
+          <input type="number" id="new_item_order" class="form-control" value="1" min="1">
+        </div>
+        <div class="col-8 col-md-3">
+          <label class="form-label small text-muted">Food type</label>
+          <input type="text" id="new_food_type" class="form-control" placeholder="e.g. milk">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small text-muted">Grams</label>
+          <input type="number" id="new_weight_grams" class="form-control" placeholder="e.g. 200">
+        </div>
+        <div class="col-6 col-md-1 d-grid">
+          <button class="btn btn-save btn-outline-success" onclick="addMealDefaultItem()" title="Add">
+            <i class="bi bi-plus-lg"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Table card ────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <span class="section-title"><i class="bi bi-egg-fried me-2 text-muted"></i>Preset items</span>
+      <span class="badge rounded-pill" style="background:#f1f5f9; color:#475569; font-size:.75rem; font-weight:600;">
+        {{ items|length }} row{{ 's' if items|length != 1 }}
+      </span>
+    </div>
+
+    {% if items %}
+    <div class="table-responsive">
+      <table class="table app-table mb-0">
+        <thead>
+          <tr>
+            <th title="Changed">Chg</th>
+            <th>Meal type</th>
+            <th>Day</th>
+            <th class="text-end">Preset #</th>
+            <th class="text-end">Item #</th>
+            <th>Food type</th>
+            <th class="text-end">Grams</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td>
+              <input id="updated_{{ loop.index }}" type="text" value="" disabled
+                     class="updated-indicator form-control">
+            </td>
+            <td class="fw-medium">
+              {{ item['meal_type'] }}
+              <input type="hidden" id="uuid_{{ loop.index }}" value="{{ item['uuid'] }}">
+            </td>
+            <td>{{ day_labels[item['day_of_week']] }}</td>
+            <td class="text-end">{{ item['preset_order'] }}</td>
+            <td class="text-end">{{ item['item_order'] }}</td>
+            <td>
+              <input type="text" id="food_type_{{ loop.index }}"
+                     value="{{ item['food_type'] }}"
+                     class="form-control"
+                     onchange="markUpdated({{ loop.index }})">
+            </td>
+            <td class="text-end">
+              <input type="number" id="weight_grams_{{ loop.index }}"
+                     value="{{ item['weight_grams'] if item['weight_grams'] is not none else '' }}"
+                     class="form-control text-end"
+                     onchange="markUpdated({{ loop.index }})">
+            </td>
+            <td class="text-center">
+              <div class="d-flex gap-1 justify-content-center">
+                <button class="btn btn-save btn-outline-success"
+                        onclick="updateMealDefaultItem({{ loop.index }})"
+                        title="Save changes">
+                  <i class="bi bi-floppy" style="font-size:.875rem;"></i>
+                </button>
+                <button class="btn btn-save btn-outline-danger"
+                        onclick="deleteMealDefaultItem('{{ item['uuid'] }}', this)"
+                        title="Delete">
+                  <i class="bi bi-trash" style="font-size:.875rem;"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <i class="bi bi-exclamation-circle"></i>
+      <p>No default meal items configured yet.</p>
+    </div>
+    {% endif %}
+
+  </div>
+  <!-- /Table card -->
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function markUpdated(index) {
+    document.getElementById('updated_' + index).value = '*';
+  }
+</script>
+<script src="{{ url_for('static', filename='js/meal_default_presets.js') }}"></script>
+{% endblock %}

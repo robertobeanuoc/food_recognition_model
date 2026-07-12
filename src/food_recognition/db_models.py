@@ -5,6 +5,7 @@ from sqlalchemy import (
     DECIMAL,
     Boolean,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -84,3 +85,40 @@ class MealSchedule(Base):
     end_time = Column(Time, nullable=False)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
+
+
+class MealDefaultItem(Base):
+    __tablename__ = "meal_default_item"
+
+    # A "preset" is not a separate row/table — it's just the group of items
+    # sharing (meal_type, day_of_week, preset_order). Rotation logic (see
+    # db.py:get_next_default_preset()) picks one preset_order per reminder
+    # based on how many times that meal_type was already logged this week.
+    uuid = Column(CHAR(36), primary_key=True, default=lambda: str(uuid_lib.uuid4()))
+    meal_type = Column(String(20), ForeignKey("meal_type.meal_type"), nullable=False)
+    day_of_week = Column(Integer, nullable=False)  # 0=Monday..6=Sunday (date.weekday())
+    preset_order = Column(Integer, nullable=False)  # 1, 2, 3... rotation order
+    item_order = Column(Integer, nullable=False)  # display order within one preset
+    food_type = Column(String(100), nullable=False)
+    weight_grams = Column(Integer)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+
+class MealReminderLog(Base):
+    __tablename__ = "meal_reminder_log"
+    __table_args__ = (
+        UniqueConstraint("meal_type", "meal_date", name="idx_meal_type_date"),
+    )
+
+    # Tracks Slack reminder state for one (meal_type, meal_date). resolved_at
+    # is a cache for observability only — the scheduler always re-derives
+    # resolution live from food_register, never trusts this flag as source of
+    # truth (see reminder_scheduler.py:check_and_send_meal_reminders()).
+    uuid = Column(CHAR(36), primary_key=True, default=lambda: str(uuid_lib.uuid4()))
+    meal_type = Column(String(20), ForeignKey("meal_type.meal_type"), nullable=False)
+    meal_date = Column(Date, nullable=False)
+    notified_at = Column(DateTime)
+    last_nudge_at = Column(DateTime)
+    last_nudge_meal_context = Column(String(20))
+    resolved_at = Column(DateTime)

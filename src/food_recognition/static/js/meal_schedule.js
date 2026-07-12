@@ -25,6 +25,6 @@ function updateMealSchedule(index) {
     })
     .catch(error => {
         console.error('Error updating meal schedule:', error);
-        alert('No se ha podido guardar el horario.');
+        alert('Could not save the schedule.');
     });
 }
