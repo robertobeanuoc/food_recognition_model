@@ -1,6 +1,7 @@
 
 import datetime
 import shutil
+import threading
 from flask import Flask, session ,render_template, request, redirect, url_for, Blueprint
 import cv2
 import numpy as np
@@ -8,8 +9,9 @@ import os
 import pytz
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
-from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register, delete_food_register, sync_schema, get_meal_schedule, update_meal_schedule, get_meal_types, utcnow, get_food_types, update_food_characteristics
+from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register, delete_food_register, sync_schema, get_meal_schedule, update_meal_schedule, get_meal_types, utcnow, get_food_types, update_food_characteristics, get_meal_default_items, add_meal_default_item, update_meal_default_item, delete_meal_default_item
 from food_recognition.similar_food import add_similar_food_info_to_food
+from food_recognition import reminder_scheduler, slack_bot
 import json
 import uuid
 
@@ -20,6 +22,10 @@ from food_recognition.validate_parameters import validate_food_type, validate_uu
 
 app = Flask(__name__,static_folder='food_recognition/static', template_folder='food_recognition/templates')
 app.secret_key = os.getenv('SECRET_KEY')
+# Set ahead of app.run(debug=True, ...) at the bottom of this file so the
+# WERKZEUG_RUN_MAIN guard below (which runs before app.run() is ever called)
+# can tell whether the dev-server reloader is in play.
+app.debug = True
 
 additionnal_static: Blueprint = Blueprint('additional_static', __name__, static_folder=os.getenv('PHOTO_FOLDER'),static_url_path='/photo')
 app.register_blueprint(additionnal_static)
@@ -33,6 +39,22 @@ Session(app)
 # Sync the DB schema with the current SQLAlchemy models (creates any missing
 # tables, e.g. meal_schedule) as soon as the app connects to the database.
 sync_schema()
+
+
+def _run_slack_bot() -> None:
+    try:
+        slack_bot.start_bot()
+    except Exception as e:
+        app_logger.error(f"Slack bot failed to start (meal reminders via Slack disabled): {e}")
+
+
+# Flask's debug reloader (implied by debug=True in the __main__ block below)
+# re-imports this module in a watcher process before spawning the actual
+# worker process — only WERKZEUG_RUN_MAIN='true' identifies the worker, so
+# guard against starting the scheduler/Slack bot twice.
+if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+    reminder_scheduler.start_scheduler()
+    threading.Thread(target=_run_slack_bot, daemon=True, name="slack-bot").start()
 
 
 def get_request_timezone() -> datetime.tzinfo:
@@ -307,6 +329,72 @@ def api_update_food_characteristics(food_type: str):
 def glycemic_index(food_type:str):
     glycemic_index:int = get_glycemic_index(food_type=food_type)
     return str(glycemic_index)
+
+
+# Day names for the /meal_default_presets UI, Monday-first to match
+# db_models.MealDefaultItem.day_of_week (Python date.weekday(), Monday=0).
+_DAY_OF_WEEK_LABELS: list[str] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+@app.route('/meal_default_presets', methods=['GET'])
+def meal_default_presets():
+    items: list[dict] = get_meal_default_items()
+    meal_types: list[str] = [m for m in get_meal_types() if m != 'other']
+    return render_template(
+        'meal_default_presets.html',
+        items=items,
+        meal_types=meal_types,
+        day_labels=_DAY_OF_WEEK_LABELS,
+    )
+
+
+@app.route('/add_meal_default_item', methods=['POST'])
+def api_add_meal_default_item():
+    meal_type: str = request.form['meal_type']
+    validate_food_type(meal_type)  # reused: just guards against path/URL-breaking characters
+    day_of_week: int = int(request.form['day_of_week'])
+    preset_order: int = int(request.form['preset_order'])
+    item_order: int = int(request.form['item_order'])
+    food_type: str = request.form['food_type']
+    validate_food_type(food_type)
+    weight_grams: int = None
+    if request.form.get('weight_grams'):
+        weight_grams = int(request.form['weight_grams'])
+
+    new_uuid: str = add_meal_default_item(
+        meal_type=meal_type,
+        day_of_week=day_of_week,
+        preset_order=preset_order,
+        item_order=item_order,
+        food_type=food_type,
+        weight_grams=weight_grams,
+    )
+    return {"status": "ok", "uuid": new_uuid}
+
+
+@app.route('/update_meal_default_item/<uuid>', methods=['POST'])
+def api_update_meal_default_item(uuid: str):
+    validate_uuid(uuid)
+    app_logger.info(f"Updating meal_default_item {uuid} ..")
+
+    food_type: str = request.form.get('food_type')
+    if food_type:
+        validate_food_type(food_type)
+    weight_grams: int = None
+    if request.form.get('weight_grams'):
+        weight_grams = int(request.form['weight_grams'])
+
+    update_meal_default_item(uuid=uuid, food_type=food_type, weight_grams=weight_grams)
+    return {"status": "ok"}
+
+
+@app.route('/delete_meal_default_item/<uuid>', methods=['DELETE'])
+def api_delete_meal_default_item(uuid: str):
+    validate_uuid(uuid)
+    app_logger.info(f"Deleting meal_default_item {uuid} ..")
+    delete_meal_default_item(uuid=uuid)
+    return {"status": "ok"}
+
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5010, ssl_context='adhoc')

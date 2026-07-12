@@ -174,3 +174,8 @@ cython_debug/
 *.Rhistory*
 
 **flask_session**
+
+# Real Vault secret payloads staged locally before `vault kv put` — keep only
+# the vault/*.example.json samples in version control.
+vault/*.json
+!vault/*.example.json

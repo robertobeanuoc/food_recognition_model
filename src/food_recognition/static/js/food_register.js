@@ -55,7 +55,7 @@ function updateFoodRegister(index)
 }
 
 function deleteFoodRegister(uuid, button) {
-    if (!confirm('¿Seguro que quieres eliminar este registro?')) {
+    if (!confirm('Are you sure you want to delete this entry?')) {
         return;
     }
 
@@ -75,6 +75,6 @@ function deleteFoodRegister(uuid, button) {
     })
     .catch(error => {
         console.error('Error deleting food register:', error);
-        alert('No se ha podido eliminar el registro.');
+        alert('Could not delete the entry.');
     });
 }

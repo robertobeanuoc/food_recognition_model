@@ -6,16 +6,25 @@ services:
     ports:
       - "5010:5010"
     environment:
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
       SECRET_KEY: ${SECRET_KEY:-changeme}
       PHOTO_FOLDER: /photos
       DEFAULT_DAYS: ${DEFAULT_DAYS:-30}
-      # Database configuration (the app reads DB_HOST/DB_USER/DB_PASSWORD/DB_NAME)
-      DB_HOST: ${DB_HOST:-127.0.0.1}
-      DB_PORT: ${DB_PORT:-3306}
-      DB_USER: ${DB_USER:-root}
-      DB_PASSWORD: ${DB_PASSWORD:-password}
-      DB_NAME: ${DB_NAME:-food_recognition}
+      # DB + Slack + OpenAI credentials are read from Vault (see CLAUDE.md
+      # "Vault secrets"). OPENAI_API_KEY / DB_HOST/PORT/USER/PASSWORD/NAME are
+      # still supported as a fallback (e.g. local dev without Vault) whenever
+      # VAULT_ADDR/VAULT_TOKEN are unset, but Vault is the primary path in
+      # normal deployments.
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      VAULT_MOUNT_POINT: ${VAULT_MOUNT_POINT:-secret}
+      VAULT_DB_SECRET_PATH: ${VAULT_DB_SECRET_PATH:-food_recognition/db}
+      VAULT_SLACK_SECRET_PATH: ${VAULT_SLACK_SECRET_PATH:-food_recognition/slack}
+      VAULT_OPENAI_SECRET_PATH: ${VAULT_OPENAI_SECRET_PATH:-food_recognition/openai}
+      # Timezone used by the meal-reminder scheduler to resolve "today"/weekday
+      # (background jobs have no request/cookie to read the browser tz from).
+      APP_TIMEZONE: ${APP_TIMEZONE:-UTC}
+      REMINDER_CHECK_INTERVAL_MINUTES: ${REMINDER_CHECK_INTERVAL_MINUTES:-10}
       # Optional: timezone for DB datetime conversions and OpenAI wait time
       DB_TZ_DATES: ${DB_TZ_DATES:-UTC}
       WAIT_TIME_OPEANAI_API: ${WAIT_TIME_OPEANAI_API:-5}

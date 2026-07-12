@@ -3,7 +3,7 @@ import base64
 from time import sleep
 from openai import OpenAI
 from food_recognition.utils import app_logger
-import os
+from food_recognition import vault_client
 from food_recognition.utils import extract_json_from_openai
 from food_recognition.constants import WAIT_TIME_OPEANAI_API
 
@@ -14,7 +14,7 @@ def encode_image(image_file:str)->bytes:
 
 def classify_image(image_file:str) -> dict:
     output_json: dict = {}
-    openai_api_key = os.getenv("OPENAI_API_KEY")
+    openai_api_key = vault_client.get_openai_secrets()["api_key"]
     client = OpenAI(api_key=openai_api_key)
     base_64_image:bytes = encode_image(image_file)
     message_info: str = "Create message for open ai"
