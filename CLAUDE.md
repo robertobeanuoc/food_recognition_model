@@ -72,6 +72,9 @@ An **existing** database needs one-off migrations instead:
 mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < sql_scripts/migrations/add_meal_type_to_food_register.sql
 # renames glycemic_index -> food_characteristics and adds carbohydrate_percentage/absorption_type
 mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < sql_scripts/migrations/rename_glycemic_index_to_food_characteristics.sql
+# adds food_register.similar_food/similar_glycemic_index (nullable, no backfill —
+# existing rows get filled in lazily the next time they're viewed)
+mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < sql_scripts/migrations/add_similar_food_to_food_register.sql
 ```
 
 ## Database backup
@@ -110,7 +113,7 @@ cp vault/slack.example.json slack.json && vault kv put secret/food_recognition/s
 2. `food_classification.py:classify_image()` — base64-encodes the image and sends it to GPT-4o vision. Returns a JSON array: `[{food_type, glycemic_index, weight_grams}, ...]`.
 3. Each item is inserted into `food_register` via `db.py:insert_food_type()`. The image and a companion `.json` file are copied to `PHOTO_FOLDER`.
 4. Redirect to `GET /view_photo/<file_uid>` — fetches all rows for that `file_uid` and calls `add_similar_food_info_to_food()`.
-5. `similar_food.py:add_similar_food_info_to_food()` — for **each** food item makes **two** GPT-4o calls: one to find the closest food in the `food_characteristics` reference table (via a Jinja2 prompt), and then reads the matched glycemic index from DB. This can be slow for photos with many food types.
+5. `similar_food.py:add_similar_food_info_to_food()` — for **each** food item whose `food_register.similar_food` is still `NULL`, makes a GPT-4o call to find the closest food in the `food_characteristics` reference table (via a Jinja2 prompt), reads the matched glycemic index from DB, and persists both (`db.py:update_food_register_similar_food()`) so the row never needs to be re-matched on a later view. This can still be slow the *first* time a photo with many food types is viewed, but every subsequent `/view_photo` load for that row is OpenAI-call-free.
 
 ### Slack meal-reminder flow
 
@@ -140,7 +143,7 @@ cp vault/slack.example.json slack.json && vault kv put secret/food_recognition/s
 
 ### Database tables
 
-- **`food_register`** — one row per food type per image (per served portion). `file_uid` groups all rows for the same photo (or the same Slack manual-log submission — see "Slack meal-reminder flow"); `uuid` is the per-row PK, generated client-side by the ORM (`default=` on `FoodRegister.uuid` in `db_models.py`). `meal_type` is a foreign key into `meal_type`, auto-classified at insert time from `meal_schedule` (`db.py:_classify_meal_type()`/`get_meal_type_for_time()`) unless passed explicitly (e.g. from the Slack modal) — falls back to `'other'` if `created_at` doesn't fall inside any configured range. Editable afterwards from `/view_photo/<file_uid>` like any other field.
+- **`food_register`** — one row per food type per image (per served portion). `file_uid` groups all rows for the same photo (or the same Slack manual-log submission — see "Slack meal-reminder flow"); `uuid` is the per-row PK, generated client-side by the ORM (`default=` on `FoodRegister.uuid` in `db_models.py`). `meal_type` is a foreign key into `meal_type`, auto-classified at insert time from `meal_schedule` (`db.py:_classify_meal_type()`/`get_meal_type_for_time()`) unless passed explicitly (e.g. from the Slack modal) — falls back to `'other'` if `created_at` doesn't fall inside any configured range. Editable afterwards from `/view_photo/<file_uid>` like any other field. `similar_food`/`similar_glycemic_index` cache the result of `similar_food.py:find_similar_food()` — `NULL` until the row's first `/view_photo` load, after which it's persisted and never recomputed (see "Request flow" step 5).
 - **`food_characteristics`** — reference table of per-food-type nutritional characteristics (formerly named `glycemic_index`): `food_type` (EN, primary key), `food_type_es` (ES), `glycemic_index`, `carbohydrate_percentage`, `absorption_type`. `db.py:_ensure_food_characteristics()` inserts a new row automatically whenever `insert_food_type()` sees a `food_type` not already present — using whatever the LLM classified for it (or, for Slack manual entries, whatever `get_glycemic_index()` already has on file) — but never overwrites an existing row. Editable from the UI at `/food_characteristics`.
 - **`meal_type`** — reference table of valid meal types (`breakfast` | `lunch` | `dinner` | `other`, English canonical values). `meal_type` (the string itself) is the primary key, so other tables reference it by natural key rather than by a surrogate id — that relationship stays meaningful and intact across migrations/restores, independent of any auto-increment id. `'other'` is the fallback for `food_register` rows outside every `meal_schedule` range — it's deliberately excluded from `meal_schedule` itself (`db.py:_seed_meal_type()`).
 - **`meal_schedule`** — the habitual time range (`start_time`–`end_time`) for each `meal_type`, split by `is_weekend`. `uuid` is the per-row PK (same client-side generation pattern as `food_register`); `meal_type` is a foreign key into `meal_type`; `UNIQUE(meal_type, is_weekend)` allows at most one range per combination (6 rows total). Seeded with default ranges by `db.sync_schema()` if empty. Editable from the UI at `/meal_schedule`. Used to auto-classify `food_register.meal_type` at insert time (see `db.py:get_meal_type_for_time()`) and to drive the reminder scheduler.
@@ -179,7 +182,7 @@ cp vault/slack.example.json slack.json && vault kv put secret/food_recognition/s
 
 ### Known issues / watch-outs
 
-- `similar_food.py` makes two OpenAI calls **per food item** on every `/view_photo` load; there is no caching.
+- `similar_food.py` makes one OpenAI call per food item **the first time** that row is viewed; the match is cached in `food_register.similar_food`/`similar_glycemic_index` and reused on every later `/view_photo` load (`db.py:update_food_register_similar_food()`). Editing a row's `food_type` (`db.py:update_food_register()`) clears both cached fields back to `NULL` so the next view recomputes the match against the new food_type instead of showing a stale one.
 - `update_food_register` in `main.py` is called with keyword argument `file_uid=` but the function signature uses `uuid=` — the two call sites use different parameter names; verify carefully when editing that function.
 - `slack_bot.py`'s Bolt `App` is created lazily (first call to `_get_app()`), not at module import time, specifically so importing the module (e.g. from tests that monkeypatch `send_reminder()`) doesn't require Slack/Vault credentials to be configured.
 - The Slack bot thread and the reminder scheduler are only started when `WERKZEUG_RUN_MAIN == 'true'` (or `app.debug` is falsy) — this guards against Flask's debug-mode reloader spawning them twice; `app.debug` is set explicitly right after the Flask app is constructed (before `sync_schema()`/the startup block run) precisely so that guard can read it ahead of the `app.run(debug=True, ...)` call at the bottom of `main.py`.

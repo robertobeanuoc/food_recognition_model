@@ -17,6 +17,12 @@ CREATE TABLE IF NOT EXISTS food_register (
     carbohydrate_weight_grams DECIMAL(8,2),
     absorption_type VARCHAR(10),
     verified BOOLEAN,
+    -- Cached find_similar_food() match + its glycemic_index, computed once on
+    -- first /view_photo load. NULL means not computed yet. See
+    -- sql_scripts/migrations/add_similar_food_to_food_register.sql for an
+    -- existing table.
+    similar_food VARCHAR(100),
+    similar_glycemic_index INT,
     PRIMARY KEY (uuid),
     FOREIGN KEY (meal_type) REFERENCES meal_type (meal_type)
 );
