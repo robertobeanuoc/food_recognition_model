@@ -9,7 +9,7 @@ import os
 import pytz
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
-from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register, delete_food_register, sync_schema, get_meal_schedule, update_meal_schedule, get_meal_types, utcnow, get_food_types, update_food_characteristics, get_meal_default_items, add_meal_default_item, update_meal_default_item, delete_meal_default_item
+from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register, delete_food_register, sync_schema, get_meal_schedule, update_meal_schedule, get_meal_types, utcnow, get_food_types, upsert_food_characteristics, get_meal_default_items, add_meal_default_item, update_meal_default_item, delete_meal_default_item
 from food_recognition.similar_food import add_similar_food_info_to_food
 from food_recognition import reminder_scheduler, slack_bot
 import json
@@ -315,7 +315,7 @@ def api_update_food_characteristics(food_type: str):
     if request.form.get('carbohydrate_percentage'):
         carbohydrate_percentage = float(request.form['carbohydrate_percentage'])
 
-    update_food_characteristics(
+    upsert_food_characteristics(
         food_type=food_type,
         food_type_es=request.form.get('food_type_es'),
         glycemic_index=glycemic_index_value,

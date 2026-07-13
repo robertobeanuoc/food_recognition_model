@@ -54,6 +54,36 @@ def classify_image(image_file:str) -> dict:
     return output_json
 
 
-    
-    
+def classify_food_characteristics(food_type: str) -> dict:
+    """Ask GPT-4o for the glycemic_index/carbohydrate_percentage/absorption_type
+    of a food by name only, no image — used when a food_type has no row (or an
+    incomplete one) in food_characteristics yet, e.g. a food typed in free-text
+    via the Slack "Other (new food)" manual-log option (see slack_bot.py).
+    """
+    openai_api_key = vault_client.get_openai_secrets()["api_key"]
+    client = OpenAI(api_key=openai_api_key)
+    response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {
+        "role": "user",
+        "content": [
+            {
+            "type": "text",
+            "text": (
+                f"For the food '{food_type}', determine: "
+                "(1) the glycemic index (integer), "
+                "(2) the carbohydrate percentage of the food as a decimal between 0 and 100 (e.g. 45.5), "
+                "(3) the absorption type: 'slow' if glycemic_index < 55, 'fast' if glycemic_index >= 55. "
+                "Export as a JSON object with keys: glycemic_index, carbohydrate_percentage, absorption_type."
+            ),
+            },
+        ],
+        }
+    ],
+    max_tokens=300,
+    )
+    sleep(WAIT_TIME_OPEANAI_API)
+    return extract_json_from_openai(response)
+
     

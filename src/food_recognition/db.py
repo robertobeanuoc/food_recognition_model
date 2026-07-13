@@ -517,13 +517,18 @@ def get_food_types_list(food_type: str = "") -> list[str]:
     return ",".join(ret_records)
 
 
-def update_food_characteristics(
+def upsert_food_characteristics(
     food_type: str,
     food_type_es: str = None,
     glycemic_index: int = None,
     carbohydrate_percentage: float = None,
     absorption_type: str = None,
 ) -> None:
+    """Upsert: updates the existing food_characteristics row for food_type
+    with whichever fields are given, or inserts a new row if food_type isn't
+    in the table yet (e.g. a food just classified by
+    food_classification.py:classify_food_characteristics() for the Slack
+    manual-log flow)."""
     values: dict = {}
     if food_type_es != None and food_type_es != "":
         values["food_type_es"] = food_type_es
@@ -540,10 +545,19 @@ def update_food_characteristics(
     with _SessionFactory() as session:
         app_logger.info("Connected to the database")
 
-        session.query(FoodCharacteristics).filter(
-            FoodCharacteristics.food_type == food_type
-        ).update(values, synchronize_session=False)
-        app_logger.info("Record updated successfully")
+        exists = (
+            session.query(FoodCharacteristics.food_type)
+            .filter(FoodCharacteristics.food_type == food_type)
+            .first()
+        )
+        if exists:
+            session.query(FoodCharacteristics).filter(
+                FoodCharacteristics.food_type == food_type
+            ).update(values, synchronize_session=False)
+            app_logger.info("Record updated successfully")
+        else:
+            session.add(FoodCharacteristics(food_type=food_type, **values))
+            app_logger.info(f"Added '{food_type}' to food_characteristics")
 
         session.commit()
         app_logger.info("Changes committed")
