@@ -286,6 +286,10 @@ def update_food_register(
     values: dict = {"updated_at": updated_at}
     if food_type != None and food_type != "":
         values["food_type"] = food_type
+        # food_type changed: the cached similar_food match now refers to the
+        # old food, so drop it and let it be recomputed on the next view.
+        values["similar_food"] = None
+        values["similar_glycemic_index"] = None
     if glycemic_index != None:
         values["glycemic_index"] = glycemic_index
     if weight_grams != None:
@@ -391,6 +395,8 @@ def get_food_registers(
                 "carbohydrate_weight_grams": record.carbohydrate_weight_grams,
                 "absorption_type": record.absorption_type,
                 "meal_type": record.meal_type,
+                "similar_food": record.similar_food,
+                "similar_glycemic_index": record.similar_glycemic_index,
             }
             for record in records
         ]
@@ -399,6 +405,20 @@ def get_food_registers(
     app_logger.info("Connection closed")
     app_logger.info("Records fetched")
     return records_json
+
+
+def update_food_register_similar_food(
+    uuid: str, similar_food: str, similar_glycemic_index: int
+) -> None:
+    """Persist the result of similar_food.py:find_similar_food() for one row,
+    so subsequent /view_photo loads can reuse it instead of calling OpenAI
+    again (see add_similar_food_info_to_food())."""
+    with _SessionFactory() as session:
+        session.query(FoodRegister).filter(FoodRegister.uuid == uuid).update(
+            {"similar_food": similar_food, "similar_glycemic_index": similar_glycemic_index},
+            synchronize_session=False,
+        )
+        session.commit()
 
 
 def get_food_characteristics(food_type: str) -> dict | None:

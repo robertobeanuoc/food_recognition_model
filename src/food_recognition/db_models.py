@@ -43,6 +43,14 @@ class FoodRegister(Base):
     carbohydrate_weight_grams = Column(DECIMAL(8, 2))
     absorption_type = Column(String(10))
     verified = Column(Boolean)
+    # Cached result of similar_food.py:find_similar_food() — the closest
+    # food_characteristics match for food_type, and its glycemic_index.
+    # Computed and persisted the first time this row is viewed (see
+    # similar_food.py:add_similar_food_info_to_food()) so /view_photo
+    # doesn't re-call OpenAI on every subsequent load. NULL means not
+    # computed yet, not "no match found".
+    similar_food = Column(String(100))
+    similar_glycemic_index = Column(Integer)
 
 
 class FoodCharacteristics(Base):
