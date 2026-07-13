@@ -6,6 +6,7 @@ from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 from food_recognition import db, vault_client
+from food_recognition.food_classification import classify_food_characteristics
 from food_recognition.utils import app_logger
 
 _MEAL_TYPE_LABEL: dict[str, str] = {
@@ -357,10 +358,26 @@ def _register_handlers(app: App) -> None:
             # fields the photo-upload flow gets from GPT-4o — otherwise
             # carbohydrate_percentage/carbohydrate_weight_grams/absorption_type
             # are silently left NULL on the food_register row.
-            characteristics = db.get_food_characteristics(food_type) or {}
-            glycemic_index = characteristics.get("glycemic_index") or 0
-            carbohydrate_percentage = characteristics.get("carbohydrate_percentage")
-            absorption_type = characteristics.get("absorption_type")
+            characteristics = db.get_food_characteristics(food_type)
+            if not characteristics or not characteristics.get("glycemic_index"):
+                # New food (e.g. typed via "Other (new food)") or a row with
+                # incomplete data — ask the LLM once and upsert the result
+                # (inserts if food_type has no row yet, updates it otherwise)
+                # so this food_type never needs classifying again.
+                llm_characteristics = classify_food_characteristics(food_type)
+                glycemic_index = llm_characteristics.get("glycemic_index") or 0
+                carbohydrate_percentage = llm_characteristics.get("carbohydrate_percentage")
+                absorption_type = llm_characteristics.get("absorption_type")
+                db.upsert_food_characteristics(
+                    food_type=food_type,
+                    glycemic_index=glycemic_index,
+                    carbohydrate_percentage=carbohydrate_percentage,
+                    absorption_type=absorption_type,
+                )
+            else:
+                glycemic_index = characteristics.get("glycemic_index") or 0
+                carbohydrate_percentage = characteristics.get("carbohydrate_percentage")
+                absorption_type = characteristics.get("absorption_type")
             carbohydrate_weight_grams = (
                 carbohydrate_percentage * weight_grams / 100
                 if carbohydrate_percentage is not None and weight_grams is not None
