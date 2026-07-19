@@ -93,6 +93,8 @@ docker compose up --build
 
 Configure credentials via Vault (`VAULT_ADDR`, `VAULT_TOKEN`) or the `DB_*`/`OPENAI_API_KEY` fallback env vars — the compose file does **not** spin up MySQL, Vault, or a Slack app, it points at existing instances. See `docker-compose.yml` for the full list of variables and volume mounts (uploads folder and `PHOTO_FOLDER`).
 
+When `VAULT_ADDR` is set, the `web` container's entrypoint (`docker/wait-for-vault.py`) polls Vault's unauthenticated `/v1/sys/seal-status` endpoint every 5s and blocks startup until Vault reports `sealed: false`, before exec'ing the app. This matters because Vault typically runs in its own Compose project here (no `depends_on` across separate compose files), so nothing otherwise stops the app from starting — and reading its secrets — before Vault has been unsealed (e.g. right after a Vault restart). Skipped entirely when `VAULT_ADDR` isn't set.
+
 ## Vault secrets
 
 DB, OpenAI, and Slack credentials are read from HashiCorp Vault (KV v2, static-token auth) via `src/food_recognition/vault_client.py`, one secret per path, each read once and cached. When `VAULT_ADDR`/`VAULT_TOKEN` aren't set, DB and OpenAI credentials fall back to plain env vars (`DB_*`, `OPENAI_API_KEY`) — Slack has no such fallback, since the reminder bot only makes sense with Vault configured.
@@ -244,6 +246,7 @@ scripts/
   backup_mysql_databases.sh            MySQL backup helper
 docker/
   Dockerfile
+  wait-for-vault.py                    Entrypoint wrapper: blocks until Vault is unsealed (if VAULT_ADDR is set) before starting the app
 docker-compose.yml
 ```
 
