@@ -56,11 +56,46 @@ def _get_app() -> App:
     return _app
 
 
+# Minimum gap between two "connection dropped" DMs — the underlying
+# slack_sdk client can fire on_close repeatedly while it's retrying a bad
+# connection, and without this a flaky network would spam the user instead
+# of sending one heads-up.
+_CONNECTION_LOST_NOTIFICATION_COOLDOWN = datetime.timedelta(minutes=5)
+
+
 def start_bot() -> None:
     """Blocking call — run in a background daemon thread (see main.py)."""
     secrets = vault_client.get_slack_secrets()
     app = _get_app()
     handler = SocketModeHandler(app, secrets["app_token"])
+
+    last_notified: datetime.datetime | None = None
+
+    def on_close(code, reason) -> None:
+        # slack_sdk auto-reconnects on its own (see check_state()/connect_to_
+        # new_endpoint() in slack_sdk.socket_mode.builtin) — this only exists
+        # so the user isn't left wondering why a button click or command they
+        # sent during the gap silently did nothing.
+        nonlocal last_notified
+        if handler.client.closed:
+            return  # intentional shutdown, not a connectivity hiccup
+        now = datetime.datetime.now(tz=pytz.utc)
+        if last_notified and now - last_notified < _CONNECTION_LOST_NOTIFICATION_COOLDOWN:
+            return
+        last_notified = now
+        app_logger.warning(f"Slack socket connection dropped (code={code}, reason={reason}), notifying user")
+        try:
+            app.client.chat_postMessage(
+                channel=secrets["user_id"],
+                text=(
+                    "⚠️ Lost connection to Slack for a moment — reconnecting automatically. "
+                    "If you just clicked a button or ran a command and nothing happened, please try again."
+                ),
+            )
+        except Exception as e:
+            app_logger.error(f"Failed to notify user about Slack connection drop: {e}")
+
+    handler.client.on_close_listeners.append(on_close)
     app_logger.info("Starting Slack bot (Socket Mode)")
     handler.start()
 
@@ -326,6 +361,15 @@ def _resolve_food_type(item: dict) -> str:
 
 
 def _register_handlers(app: App) -> None:
+    @app.error
+    def handle_bolt_error(error, body):
+        # Without this, an exception raised inside any listener above (e.g. a
+        # views_update call failing) is swallowed by Bolt's default handling
+        # and never reaches app_logger, so failures show up as "nothing
+        # happened" in Slack with no trace in our logs.
+        app_logger.error(f"Slack Bolt error: {error}", exc_info=error)
+        app_logger.error(f"Slack Bolt error body: {body}")
+
     @app.command("/register-food")
     def handle_register_food_command(ack, body, client):
         # Ignores any typed command text — always opens the meal-type picker
@@ -397,10 +441,20 @@ def _register_handlers(app: App) -> None:
 
         items = _parse_state_items(view["state"]["values"], metadata["item_count"])
         remove_index = int(body["actions"][0]["value"])
+        app_logger.info(
+            f"remove_food_item: view_id={view['id']} item_count={metadata['item_count']} "
+            f"remove_index={remove_index}"
+        )
         if 0 <= remove_index < len(items):
             items.pop(remove_index)
+        else:
+            app_logger.warning(
+                f"remove_food_item: index {remove_index} out of range for {len(items)} item(s) "
+                f"on view {view['id']} — nothing removed"
+            )
 
-        client.views_update(view_id=view["id"], view=_build_modal_view(meal_type, meal_date, items))
+        response = client.views_update(view_id=view["id"], view=_build_modal_view(meal_type, meal_date, items))
+        app_logger.info(f"remove_food_item: views_update ok={response.get('ok')} view_id={view['id']}")
 
     @app.view("meal_log_modal")
     def handle_meal_log_submission(ack, view, client):
