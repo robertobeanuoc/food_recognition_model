@@ -19,9 +19,13 @@ COPY requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && pip install --no-cache-dir -r /app/requirements.txt
 
 COPY src/ /app/
+COPY docker/wait-for-vault.py /usr/local/bin/wait-for-vault.py
+RUN chmod +x /usr/local/bin/wait-for-vault.py
 
 ENV FLASK_APP=main.py
 EXPOSE 5010
 
+# Waits for Vault to be unsealed (if VAULT_ADDR is set) before exec'ing CMD.
+ENTRYPOINT ["python", "/usr/local/bin/wait-for-vault.py"]
 # Run the Flask app directly with Python (development mode)
 CMD ["python", "main.py"]
