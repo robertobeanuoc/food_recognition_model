@@ -56,11 +56,46 @@ def _get_app() -> App:
     return _app
 
 
+# Minimum gap between two "connection dropped" DMs — the underlying
+# slack_sdk client can fire on_close repeatedly while it's retrying a bad
+# connection, and without this a flaky network would spam the user instead
+# of sending one heads-up.
+_CONNECTION_LOST_NOTIFICATION_COOLDOWN = datetime.timedelta(minutes=5)
+
+
 def start_bot() -> None:
     """Blocking call — run in a background daemon thread (see main.py)."""
     secrets = vault_client.get_slack_secrets()
     app = _get_app()
     handler = SocketModeHandler(app, secrets["app_token"])
+
+    last_notified: datetime.datetime | None = None
+
+    def on_close(code, reason) -> None:
+        # slack_sdk auto-reconnects on its own (see check_state()/connect_to_
+        # new_endpoint() in slack_sdk.socket_mode.builtin) — this only exists
+        # so the user isn't left wondering why a button click or command they
+        # sent during the gap silently did nothing.
+        nonlocal last_notified
+        if handler.client.closed:
+            return  # intentional shutdown, not a connectivity hiccup
+        now = datetime.datetime.now(tz=pytz.utc)
+        if last_notified and now - last_notified < _CONNECTION_LOST_NOTIFICATION_COOLDOWN:
+            return
+        last_notified = now
+        app_logger.warning(f"Slack socket connection dropped (code={code}, reason={reason}), notifying user")
+        try:
+            app.client.chat_postMessage(
+                channel=secrets["user_id"],
+                text=(
+                    "⚠️ Lost connection to Slack for a moment — reconnecting automatically. "
+                    "If you just clicked a button or ran a command and nothing happened, please try again."
+                ),
+            )
+        except Exception as e:
+            app_logger.error(f"Failed to notify user about Slack connection drop: {e}")
+
+    handler.client.on_close_listeners.append(on_close)
     app_logger.info("Starting Slack bot (Socket Mode)")
     handler.start()
 
