@@ -1,7 +1,9 @@
 import datetime
 import json
+import os
 import uuid as uuid_lib
 
+import pytz
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
@@ -14,6 +16,16 @@ _MEAL_TYPE_LABEL: dict[str, str] = {
     "lunch": "lunch",
     "dinner": "dinner",
     "other": "this meal",
+}
+
+# Display labels for the /register-food meal-type picker — distinct from
+# _MEAL_TYPE_LABEL above (tuned for reminder sentences like "logged this
+# meal", not a dropdown option).
+_MEAL_TYPE_DISPLAY_LABEL: dict[str, str] = {
+    "breakfast": "Breakfast",
+    "lunch": "Lunch",
+    "dinner": "Dinner",
+    "other": "Other",
 }
 
 # Sentinel food_type value for the "not in the catalog yet" option — never a
@@ -83,6 +95,50 @@ def send_reminder(meal_type: str, meal_date: datetime.date, escalation: bool = F
     )
 
 
+def _local_today() -> datetime.date:
+    """"Today" in APP_TIMEZONE — same resolution reminder_scheduler.py uses,
+    duplicated locally to avoid importing reminder_scheduler (which imports
+    this module, so that import would be circular).
+    """
+    tz_name = os.getenv("APP_TIMEZONE", "UTC")
+    try:
+        tz = pytz.timezone(tz_name)
+    except pytz.UnknownTimeZoneError:
+        tz = pytz.utc
+    return datetime.datetime.now(tz=pytz.utc).astimezone(tz).date()
+
+
+def _build_meal_type_picker_view() -> dict:
+    """First step of the /register-food flow: pick which meal to log. On
+    submit, handle_register_food_meal_type_submission pushes the same
+    food-item modal used by the reminder DM's "Log now" button.
+    """
+    options = [
+        {"text": {"type": "plain_text", "text": label}, "value": meal_type}
+        for meal_type, label in _MEAL_TYPE_DISPLAY_LABEL.items()
+    ]
+    return {
+        "type": "modal",
+        "callback_id": "register_food_meal_type_modal",
+        "title": {"type": "plain_text", "text": "Log meal"},
+        "submit": {"type": "plain_text", "text": "Next"},
+        "close": {"type": "plain_text", "text": "Cancel"},
+        "blocks": [
+            {
+                "type": "input",
+                "block_id": "meal_type_block",
+                "label": {"type": "plain_text", "text": "Which meal do you want to log?"},
+                "element": {
+                    "type": "static_select",
+                    "action_id": "meal_type_select",
+                    "placeholder": {"type": "plain_text", "text": "Select a meal"},
+                    "options": options,
+                },
+            }
+        ],
+    }
+
+
 def _food_type_options(catalog: list[dict], current_food_type: str | None) -> list[dict]:
     """static_select options from the ranked catalog, plus the "Otro" sentinel.
 
@@ -93,7 +149,7 @@ def _food_type_options(catalog: list[dict], current_food_type: str | None) -> li
     """
     options = [
         {
-            "text": {"type": "plain_text", "text": (row["food_type_es"] or row["food_type"])[:75]},
+            "text": {"type": "plain_text", "text": (row["food_type"] or row["food_type_es"])[:75]},
             "value": row["food_type"],
         }
         for row in catalog
@@ -270,6 +326,28 @@ def _resolve_food_type(item: dict) -> str:
 
 
 def _register_handlers(app: App) -> None:
+    @app.command("/register-food")
+    def handle_register_food_command(ack, body, client):
+        # Ignores any typed command text — always opens the meal-type picker
+        # rather than trying to parse it, so there's no ambiguity around
+        # accepted values/typos; the picker is sourced straight from the
+        # meal_type table's canonical values via _MEAL_TYPE_DISPLAY_LABEL.
+        ack()
+        client.views_open(
+            trigger_id=body["trigger_id"],
+            view=_build_meal_type_picker_view(),
+        )
+
+    @app.view("register_food_meal_type_modal")
+    def handle_register_food_meal_type_submission(ack, view):
+        meal_type = view["state"]["values"]["meal_type_block"]["meal_type_select"]["selected_option"]["value"]
+        meal_date = _local_today()
+        items = db.get_next_default_preset(meal_type, meal_date)
+        # response_action "push" opens a new modal on top of this one without
+        # needing a fresh trigger_id — same food-item modal the reminder DM's
+        # "Log now" button opens.
+        ack(response_action="push", view=_build_modal_view(meal_type, meal_date, items))
+
     @app.action("open_meal_form")
     def handle_open_meal_form(ack, body, client):
         ack()
