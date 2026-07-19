@@ -326,6 +326,15 @@ def _resolve_food_type(item: dict) -> str:
 
 
 def _register_handlers(app: App) -> None:
+    @app.error
+    def handle_bolt_error(error, body):
+        # Without this, an exception raised inside any listener above (e.g. a
+        # views_update call failing) is swallowed by Bolt's default handling
+        # and never reaches app_logger, so failures show up as "nothing
+        # happened" in Slack with no trace in our logs.
+        app_logger.error(f"Slack Bolt error: {error}", exc_info=error)
+        app_logger.error(f"Slack Bolt error body: {body}")
+
     @app.command("/register-food")
     def handle_register_food_command(ack, body, client):
         # Ignores any typed command text — always opens the meal-type picker
@@ -397,10 +406,20 @@ def _register_handlers(app: App) -> None:
 
         items = _parse_state_items(view["state"]["values"], metadata["item_count"])
         remove_index = int(body["actions"][0]["value"])
+        app_logger.info(
+            f"remove_food_item: view_id={view['id']} item_count={metadata['item_count']} "
+            f"remove_index={remove_index}"
+        )
         if 0 <= remove_index < len(items):
             items.pop(remove_index)
+        else:
+            app_logger.warning(
+                f"remove_food_item: index {remove_index} out of range for {len(items)} item(s) "
+                f"on view {view['id']} — nothing removed"
+            )
 
-        client.views_update(view_id=view["id"], view=_build_modal_view(meal_type, meal_date, items))
+        response = client.views_update(view_id=view["id"], view=_build_modal_view(meal_type, meal_date, items))
+        app_logger.info(f"remove_food_item: views_update ok={response.get('ok')} view_id={view['id']}")
 
     @app.view("meal_log_modal")
     def handle_meal_log_submission(ack, view, client):
