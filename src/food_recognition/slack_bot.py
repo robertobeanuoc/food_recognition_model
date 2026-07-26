@@ -37,7 +37,7 @@ _OTHER_OPTION: dict = {
     "value": _OTHER_FOOD_TYPE_VALUE,
 }
 # Slack's hard limit on how many options a static_select can carry; -1 to
-# always leave room for _OTHER_OPTION appended at the end.
+# always leave room for _OTHER_OPTION prepended at the start.
 _MAX_STATIC_SELECT_OPTIONS = 100
 
 _app: App | None = None
@@ -175,7 +175,7 @@ def _build_meal_type_picker_view() -> dict:
 
 
 def _food_type_options(catalog: list[dict], current_food_type: str | None) -> list[dict]:
-    """static_select options from the ranked catalog, plus the "Otro" sentinel.
+    """static_select options: the "Other (new food)" sentinel first, then the ranked catalog.
 
     Ensures `current_food_type` is present as an option even if it fell
     outside the catalog/cap (e.g. a habitual preset item rarely logged
@@ -192,7 +192,10 @@ def _food_type_options(catalog: list[dict], current_food_type: str | None) -> li
     known_values = {option["value"] for option in options}
     if current_food_type and current_food_type != _OTHER_FOOD_TYPE_VALUE and current_food_type not in known_values:
         options.insert(0, {"text": {"type": "plain_text", "text": current_food_type}, "value": current_food_type})
-    return options[: _MAX_STATIC_SELECT_OPTIONS - 1] + [_OTHER_OPTION]
+    # "Other (new food)" first — the easiest option to reach in the dropdown —
+    # since a food not yet in the catalog is what a user is most likely to
+    # need to pick quickly.
+    return [_OTHER_OPTION] + options[: _MAX_STATIC_SELECT_OPTIONS - 1]
 
 
 def _food_item_blocks(
