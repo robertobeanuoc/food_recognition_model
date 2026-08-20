@@ -1,4 +1,5 @@
 import functools
+from urllib.parse import urlencode
 
 from authlib.integrations.flask_client import OAuth
 from flask import Blueprint, jsonify, redirect, request, session, url_for
@@ -10,17 +11,20 @@ auth_bp = Blueprint('auth', __name__)
 
 oauth = OAuth()
 
+_issuer: str | None = None
+
 
 def init_oauth(app) -> None:
     """Register the Authentik OIDC client. Call once at app startup."""
+    global _issuer
     secrets: dict = get_oidc_secrets()
-    issuer: str = secrets['issuer'].rstrip('/')
+    _issuer = secrets['issuer'].rstrip('/')
     oauth.init_app(app)
     oauth.register(
         name='authentik',
         client_id=secrets['client_id'],
         client_secret=secrets['client_secret'],
-        server_metadata_url=f"{issuer}/.well-known/openid-configuration",
+        server_metadata_url=f"{_issuer}/.well-known/openid-configuration",
         client_kwargs={'scope': 'openid profile email'},
     )
 
@@ -40,6 +44,10 @@ def callback():
         'email': userinfo.get('email'),
         'name': userinfo.get('name') or userinfo.get('preferred_username'),
     }
+    # Needed at /logout to also end the Authentik-side SSO session (id_token_hint) —
+    # without it, Authentik's own session cookie survives our local logout and the
+    # next /login silently re-authenticates instead of prompting again.
+    session['id_token'] = token.get('id_token')
     app_logger.info(f"User {session['user'].get('email')} logged in")
     next_url: str | None = session.pop('next_url', None)
     return redirect(next_url or url_for('index'))
@@ -47,8 +55,13 @@ def callback():
 
 @auth_bp.route('/logout')
 def logout():
+    id_token: str | None = session.pop('id_token', None)
     session.pop('user', None)
-    return redirect(url_for('auth.login'))
+    session.pop('next_url', None)
+    end_session_url: str = f"{_issuer}/end-session/"
+    if id_token:
+        end_session_url += f"?{urlencode({'id_token_hint': id_token})}"
+    return redirect(end_session_url)
 
 
 def login_required(view_func=None, *, api: bool = False):
