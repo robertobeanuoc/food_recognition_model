@@ -7,10 +7,12 @@ from food_recognition.utils import app_logger
 _DB_SECRET_KEYS = ("host", "port", "user", "password", "name")
 _SLACK_SECRET_KEYS = ("bot_token", "app_token", "user_id")
 _OPENAI_SECRET_KEYS = ("api_key",)
+_OIDC_SECRET_KEYS = ("client_id", "client_secret", "issuer")
 
 _db_secrets_cache: dict | None = None
 _slack_secrets_cache: dict | None = None
 _openai_secrets_cache: dict | None = None
+_oidc_secrets_cache: dict | None = None
 
 
 def _vault_configured() -> bool:
@@ -86,6 +88,35 @@ def get_openai_secrets() -> dict:
         app_logger.info("VAULT_ADDR/VAULT_TOKEN not set — reading OpenAI credentials from env vars")
         _openai_secrets_cache = {"api_key": os.getenv("OPENAI_API_KEY")}
     return _openai_secrets_cache
+
+
+def get_oidc_secrets() -> dict:
+    """OIDC client credentials: client_id/client_secret/issuer, for logging in
+    via Authentik. Read from Vault KV v2 at VAULT_OIDC_SECRET_PATH when
+    VAULT_ADDR/VAULT_TOKEN are set. Falls back to the plain OIDC_CLIENT_ID/
+    OIDC_CLIENT_SECRET/OIDC_ISSUER env vars otherwise, same pattern as
+    get_db_secrets().
+    """
+    global _oidc_secrets_cache
+    if _oidc_secrets_cache is not None:
+        return _oidc_secrets_cache
+
+    if _vault_configured():
+        path = os.getenv("VAULT_OIDC_SECRET_PATH", "food_recognition/oidc")
+        secrets = _read_kv_secret(path)
+        missing = [key for key in _OIDC_SECRET_KEYS if key not in secrets]
+        if missing:
+            raise ValueError(f"Vault secret at '{path}' is missing keys: {missing}")
+        app_logger.info("Loaded OIDC credentials from Vault path '%s'", path)
+        _oidc_secrets_cache = {key: secrets[key] for key in _OIDC_SECRET_KEYS}
+    else:
+        app_logger.info("VAULT_ADDR/VAULT_TOKEN not set — reading OIDC credentials from env vars")
+        _oidc_secrets_cache = {
+            "client_id": os.getenv("OIDC_CLIENT_ID"),
+            "client_secret": os.getenv("OIDC_CLIENT_SECRET"),
+            "issuer": os.getenv("OIDC_ISSUER"),
+        }
+    return _oidc_secrets_cache
 
 
 def get_slack_secrets() -> dict:

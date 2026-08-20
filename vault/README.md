@@ -19,6 +19,7 @@ is no wrapper field, the secret itself is the JSON object.
 | `db.example.json` | `food_recognition/db` (`VAULT_DB_SECRET_PATH`) |
 | `openai.example.json` | `food_recognition/openai` (`VAULT_OPENAI_SECRET_PATH`) |
 | `slack.example.json` | `food_recognition/slack` (`VAULT_SLACK_SECRET_PATH`) |
+| `oidc.example.json` | `food_recognition/oidc` (`VAULT_OIDC_SECRET_PATH`) |
 
 Any non-`.example.json` file in this directory is gitignored, so it's safe to
 stage a real copy here temporarily while preparing a `vault kv put` — just
