@@ -15,12 +15,16 @@ services:
       # VAULT_ADDR/VAULT_TOKEN are unset, but Vault is the primary path in
       # normal deployments.
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      OIDC_ISSUER: ${OIDC_ISSUER}
       VAULT_ADDR: ${VAULT_ADDR}
       VAULT_TOKEN: ${VAULT_TOKEN}
       VAULT_MOUNT_POINT: ${VAULT_MOUNT_POINT:-secret}
       VAULT_DB_SECRET_PATH: ${VAULT_DB_SECRET_PATH:-food_recognition/db}
       VAULT_SLACK_SECRET_PATH: ${VAULT_SLACK_SECRET_PATH:-food_recognition/slack}
       VAULT_OPENAI_SECRET_PATH: ${VAULT_OPENAI_SECRET_PATH:-food_recognition/openai}
+      VAULT_OIDC_SECRET_PATH: ${VAULT_OIDC_SECRET_PATH:-food_recognition/oidc}
       # Timezone used by the meal-reminder scheduler to resolve "today"/weekday
       # (background jobs have no request/cookie to read the browser tz from).
       APP_TIMEZONE: ${APP_TIMEZONE:-UTC}

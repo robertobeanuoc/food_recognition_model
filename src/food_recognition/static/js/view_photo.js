@@ -5,7 +5,12 @@ function updateGlycemicIndex(index) {
 
     var url = '/glycemic_index/' + foodTypeInput.value;
     fetch(url)
-        .then(response => response.text())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Request failed with status ${response.status}`);
+            }
+            return response.text();
+        })
         .then(data => {
             var glycemicIndexInput = document.getElementById('glycemic_index_' + index);
             console.log('updateGlycemicIndex called with index:', glycemicIndexInput);

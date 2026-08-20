@@ -94,8 +94,9 @@ Each Vault path's secret **is** a JSON object — a KV v2 secret's data is inher
 - `get_db_secrets()` reads `VAULT_DB_SECRET_PATH` (default `food_recognition/db`), expecting a JSON object with keys `host`/`port`/`user`/`password`/`name`. **Falls back to the plain `DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD`/`DB_NAME` env vars** whenever `VAULT_ADDR`/`VAULT_TOKEN` aren't set, so local dev/tests don't require a running Vault instance.
 - `get_openai_secrets()` reads `VAULT_OPENAI_SECRET_PATH` (default `food_recognition/openai`), expecting a JSON object with key `api_key`. **Falls back to the plain `OPENAI_API_KEY` env var** whenever `VAULT_ADDR`/`VAULT_TOKEN` aren't set, same as `get_db_secrets()`. Used by `food_classification.py` and `similar_food.py` instead of calling `os.getenv("OPENAI_API_KEY")` directly.
 - `get_slack_secrets()` reads `VAULT_SLACK_SECRET_PATH` (default `food_recognition/slack`), expecting a JSON object with keys `bot_token` (`xoxb-...`), `app_token` (`xapp-...`), `user_id` (the Slack user ID to DM reminders to). No env-var fallback — Slack integration is opt-in and only makes sense with Vault configured; if unset, the Slack bot thread logs an error at startup and the rest of the app keeps working normally.
+- `get_oidc_secrets()` reads `VAULT_OIDC_SECRET_PATH` (default `food_recognition/oidc`), expecting a JSON object with keys `client_id`/`client_secret`/`issuer` for the app's OAuth2 Provider in Authentik (see `auth.py`). **Falls back to the plain `OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET`/`OIDC_ISSUER` env vars** whenever `VAULT_ADDR`/`VAULT_TOKEN` aren't set, same as `get_db_secrets()`.
 
-All three are read once and cached at module level (same pattern as `db._engine` being built once at import). Requires a Slack app already created at api.slack.com with **Socket Mode** enabled (an App-Level Token with `connections:write`), a bot token with `chat:write` scope, and Interactivity turned on — this repo does not create or configure the Slack app itself.
+All four are read once and cached at module level (same pattern as `db._engine` being built once at import). Requires a Slack app already created at api.slack.com with **Socket Mode** enabled (an App-Level Token with `connections:write`), a bot token with `chat:write` scope, and Interactivity turned on — this repo does not create or configure the Slack app itself. Requires an OAuth2 Provider + Application already created in Authentik (redirect URI `<app base URL>/auth/callback`) — this repo does not create it itself; see `user-management-apps/authentik/scripts/create_oauth2_client.py`.
 
 Sample payloads live in `vault/` (`db.example.json`, `openai.example.json`, `slack.example.json`, plus `vault/README.md`) — copy one, fill in real values, and upload it with `@<file>` (Vault CLI; the examples below assume the default `secret/` mount — swap in your own if `VAULT_MOUNT_POINT` differs, e.g. `kv/food_recognition/db`). The `VAULT_*_SECRET_PATH` env vars only cover the path *within* the mount, never the mount name itself, and never start with `/`:
 
@@ -137,6 +138,7 @@ cp vault/slack.example.json slack.json && vault kv put secret/food_recognition/s
 | `src/food_recognition/db.py` | All MySQL queries via SQLAlchemy ORM (engine + pooled sessions, `mysql+mysqlconnector` dialect); also `sync_schema()`, the programmatic schema-sync entry point |
 | `src/food_recognition/db_models.py` | SQLAlchemy declarative models (`FoodRegister`, `FoodCharacteristics`, `MealType`, `MealSchedule`, `MealDefaultItem`, `MealReminderLog`) mapping the existing tables |
 | `src/food_recognition/vault_client.py` | Vault (KV v2, static token) client — `get_db_secrets()` (with env-var fallback) and `get_slack_secrets()` |
+| `src/food_recognition/auth.py` | OIDC login (Authlib) against Authentik — `auth` blueprint (`/login`, `/auth/callback`, `/logout`) and the `login_required` decorator applied to every route in `main.py` |
 | `src/food_recognition/reminder_scheduler.py` | `APScheduler` background job that watches `meal_schedule` windows and triggers Slack reminders/escalations — see "Slack meal-reminder flow" |
 | `src/food_recognition/slack_bot.py` | Slack Bolt app (Socket Mode): sends reminder DMs, handles the `/register-food` slash command, opens the log-meal modal, handles its dynamic "add item"/"remove item"/submit interactions |
 | `src/food_recognition/utils.py` | Shared logger (`app_logger`) and `extract_json_from_openai()` parser |
@@ -166,8 +168,10 @@ cp vault/slack.example.json slack.json && vault kv put secret/food_recognition/s
 | `VAULT_DB_SECRET_PATH` | `food_recognition/db` | Vault KV v2 path for DB credentials (`host`/`port`/`user`/`password`/`name`) |
 | `VAULT_OPENAI_SECRET_PATH` | `food_recognition/openai` | Vault KV v2 path for the OpenAI API key (`api_key`) |
 | `VAULT_SLACK_SECRET_PATH` | `food_recognition/slack` | Vault KV v2 path for Slack credentials (`bot_token`/`app_token`/`user_id`) |
+| `VAULT_OIDC_SECRET_PATH` | `food_recognition/oidc` | Vault KV v2 path for OIDC login credentials (`client_id`/`client_secret`/`issuer`) |
 | `OPENAI_API_KEY` | — | Fallback OpenAI key, used only when Vault isn't configured |
 | `DB_HOST/PORT/USER/PASSWORD/NAME` | see compose | Fallback MySQL connection, used only when Vault isn't configured |
+| `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` / `OIDC_ISSUER` | — | Fallback OIDC login credentials, used only when Vault isn't configured |
 | `APP_TIMEZONE` | `UTC` | Timezone the reminder scheduler uses to resolve "today"/weekday (no per-request cookie in a background job) |
 | `REMINDER_CHECK_INTERVAL_MINUTES` | `10` | How often the reminder scheduler checks for unregistered meals |
 | `WAIT_TIME_OPEANAI_API` | `5` | Seconds to sleep between OpenAI calls |

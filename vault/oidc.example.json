@@ -1,0 +1,5 @@
+{
+  "client_id": "REPLACE-WITH-AUTHENTIK-CLIENT-ID",
+  "client_secret": "REPLACE-WITH-AUTHENTIK-CLIENT-SECRET",
+  "issuer": "http://192.168.0.59:9000/application/o/food-recognition/"
+}

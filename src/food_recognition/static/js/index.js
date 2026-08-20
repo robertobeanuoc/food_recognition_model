@@ -57,13 +57,25 @@ snap.addEventListener('click', () => {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.url)
+            .then(response => {
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return null;
+                }
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+                return response.url;
+            })
             .then(data => {
-                console.log(data);
-                window.location.href = data;
+                if (data) {
+                    console.log(data);
+                    window.location.href = data;
+                }
             })
             .catch(error => {
                 console.error('Error:', error);
+                alert('Could not upload the photo.');
             });
         }, 'image/jpeg');
 

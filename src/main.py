@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import os
 import pytz
+from food_recognition.auth import auth_bp, init_oauth, login_required, unauthenticated_response
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
 from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register, delete_food_register, sync_schema, get_meal_schedule, update_meal_schedule, get_meal_types, utcnow, get_food_types, upsert_food_characteristics, get_meal_default_items, add_meal_default_item, update_meal_default_item, delete_meal_default_item
@@ -28,10 +29,24 @@ app.secret_key = os.getenv('SECRET_KEY')
 app.debug = True
 
 additionnal_static: Blueprint = Blueprint('additional_static', __name__, static_folder=os.getenv('PHOTO_FOLDER'),static_url_path='/photo')
+
+
+@additionnal_static.before_request
+def _require_login_for_photos():
+    if 'user' not in session:
+        return unauthenticated_response()
+
+
 app.register_blueprint(additionnal_static)
+app.register_blueprint(auth_bp)
 
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SECRET_KEY"] = app.secret_key
+# Explicit rather than relying on Flask's default: blocks the session cookie
+# from being sent on cross-site subresource/form requests to the now-session-
+# gated mutation routes (e.g. api_update_food_register), while still allowing
+# it on the top-level redirect back from Authentik's /auth/callback.
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 UPLOAD_FOLDER:str = 'food_recognition/static/uploads'
 
 Session(app)
@@ -53,6 +68,7 @@ def _run_slack_bot() -> None:
 # worker process — only WERKZEUG_RUN_MAIN='true' identifies the worker, so
 # guard against starting the scheduler/Slack bot twice.
 if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+    init_oauth(app)
     reminder_scheduler.start_scheduler()
     threading.Thread(target=_run_slack_bot, daemon=True, name="slack-bot").start()
 
@@ -99,10 +115,12 @@ def _local_time_to_utc(value: datetime.time, tz: datetime.tzinfo) -> datetime.ti
 
 
 @app.route('/')
+@login_required
 def index():
     return render_template('index.html')
 
 @app.route('/upload', methods=['POST','GET'])
+@login_required(api=True)
 def upload():
     
     if 'file' not in request.files:
@@ -182,6 +200,7 @@ def save_files_to_storage(file_image:str, file_json:str):
 
 
 @app.route('/update_values', methods=['POST'])
+@login_required(api=True)
 def update_values():
     app_logger.info("Updating values ..")
     num_food_types:int = 0
@@ -199,6 +218,7 @@ def update_values():
 
 
 @app.route('/update_food_register/<uuid>/<food_type>/<int:glycemic_index>/<int:weight_grams>/<int:verified>', methods=['GET'])
+@login_required(api=True)
 def api_update_food_register(uuid:str, food_type:str, glycemic_index:int, weight_grams:int, verified:int):
 
     validate_uuid(uuid)
@@ -228,6 +248,7 @@ def api_update_food_register(uuid:str, food_type:str, glycemic_index:int, weight
 
 
 @app.route('/delete_food_register/<uuid>', methods=['DELETE'])
+@login_required(api=True)
 def api_delete_food_register(uuid: str):
     validate_uuid(uuid)
     app_logger.info(f"Deleting food_register {uuid} ..")
@@ -236,6 +257,7 @@ def api_delete_food_register(uuid: str):
 
 
 @app.route('/view_photo/<file_uid>', methods=['GET'])
+@login_required
 def view_photo(file_uid:str):
     created_at: datetime.datetime = None
     validate_uuid(file_uid)
@@ -247,6 +269,7 @@ def view_photo(file_uid:str):
     return render_template('view_photo.html', uuid_img=file_uid,food_registers=food_registers, created_at=created_at, meal_types=meal_types )
 
 @app.route('/meals', methods=['GET','POST'])
+@login_required
 def meals():
     user_tz: datetime.tzinfo = get_request_timezone()
 
@@ -271,6 +294,7 @@ def meals():
 
 
 @app.route('/meal_schedule', methods=['GET'])
+@login_required
 def meal_schedule():
     user_tz: datetime.tzinfo = get_request_timezone()
     meal_schedule_rows: list[dict] = get_meal_schedule()
@@ -281,6 +305,7 @@ def meal_schedule():
 
 
 @app.route('/update_meal_schedule/<uuid>', methods=['POST'])
+@login_required(api=True)
 def api_update_meal_schedule(uuid: str):
     validate_uuid(uuid)
     app_logger.info(f"Updating meal_schedule for {uuid} ..")
@@ -297,12 +322,14 @@ def api_update_meal_schedule(uuid: str):
 
 
 @app.route('/food_characteristics', methods=['GET'])
+@login_required
 def food_characteristics():
     food_types: list[dict] = get_food_types()
     return render_template('food_characteristics.html', food_types=food_types)
 
 
 @app.route('/update_food_characteristics/<food_type>', methods=['POST'])
+@login_required(api=True)
 def api_update_food_characteristics(food_type: str):
     validate_food_type(food_type)
     app_logger.info(f"Updating food_characteristics for {food_type} ..")
@@ -326,6 +353,7 @@ def api_update_food_characteristics(food_type: str):
 
 
 @app.route('/glycemic_index/<food_type>', methods=['GET'])
+@login_required(api=True)
 def glycemic_index(food_type:str):
     glycemic_index:int = get_glycemic_index(food_type=food_type)
     return str(glycemic_index)
@@ -337,6 +365,7 @@ _DAY_OF_WEEK_LABELS: list[str] = ["Monday", "Tuesday", "Wednesday", "Thursday", 
 
 
 @app.route('/meal_default_presets', methods=['GET'])
+@login_required
 def meal_default_presets():
     items: list[dict] = get_meal_default_items()
     meal_types: list[str] = [m for m in get_meal_types() if m != 'other']
@@ -349,6 +378,7 @@ def meal_default_presets():
 
 
 @app.route('/add_meal_default_item', methods=['POST'])
+@login_required(api=True)
 def api_add_meal_default_item():
     meal_type: str = request.form['meal_type']
     validate_food_type(meal_type)  # reused: just guards against path/URL-breaking characters
@@ -373,6 +403,7 @@ def api_add_meal_default_item():
 
 
 @app.route('/update_meal_default_item/<uuid>', methods=['POST'])
+@login_required(api=True)
 def api_update_meal_default_item(uuid: str):
     validate_uuid(uuid)
     app_logger.info(f"Updating meal_default_item {uuid} ..")
@@ -389,6 +420,7 @@ def api_update_meal_default_item(uuid: str):
 
 
 @app.route('/delete_meal_default_item/<uuid>', methods=['DELETE'])
+@login_required(api=True)
 def api_delete_meal_default_item(uuid: str):
     validate_uuid(uuid)
     app_logger.info(f"Deleting meal_default_item {uuid} ..")

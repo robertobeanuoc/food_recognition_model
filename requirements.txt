@@ -14,3 +14,4 @@ asgiref>=3.0
 hvac>=2.1
 slack-bolt>=1.20
 APScheduler>=3.10
+Authlib>=1.3
