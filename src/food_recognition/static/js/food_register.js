@@ -51,6 +51,15 @@ function updateFoodRegister(index)
           // Additional headers can be added here if needed
         },
     })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Request failed with status ${response.status}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error updating food register:', error);
+        alert('Could not save the changes.');
+    });
 
 }
 

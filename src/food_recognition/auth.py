@@ -1,6 +1,7 @@
 import functools
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
+from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.flask_client import OAuth
 from flask import Blueprint, jsonify, redirect, request, session, url_for
 
@@ -37,7 +38,14 @@ def login():
 
 @auth_bp.route('/auth/callback')
 def callback():
-    token: dict = oauth.authentik.authorize_access_token()
+    try:
+        token: dict = oauth.authentik.authorize_access_token()
+    except OAuthError as e:
+        # Cancelled consent, a stale/replayed callback URL, or an expired
+        # `state` all land here — without this, Authlib's exception would
+        # otherwise hit Flask's debug-mode error page unhandled.
+        app_logger.warning(f"OIDC callback rejected: {e}")
+        return redirect(url_for('auth.login'))
     userinfo: dict = token.get('userinfo') or oauth.authentik.userinfo(token=token)
     session['user'] = {
         'sub': userinfo.get('sub'),
@@ -64,6 +72,12 @@ def logout():
     return redirect(end_session_url)
 
 
+def unauthenticated_response():
+    """Shared 401 JSON response for any endpoint gating on `'user' in session`
+    outside of `login_required` itself (e.g. a blueprint's before_request)."""
+    return jsonify({"error": "unauthenticated"}), 401
+
+
 def login_required(view_func=None, *, api: bool = False):
     """Guard a route behind an authenticated session.
 
@@ -76,8 +90,12 @@ def login_required(view_func=None, *, api: bool = False):
         def wrapped(*args, **kwargs):
             if 'user' not in session:
                 if api:
-                    return jsonify({"error": "unauthenticated"}), 401
-                session['next_url'] = request.url
+                    return unauthenticated_response()
+                # Path + query only (never the scheme/host request.url would
+                # include) so a spoofed/forwarded Host header can't turn this
+                # into a post-login redirect off the app's own routes.
+                split = urlsplit(request.url)
+                session['next_url'] = split.path + (f"?{split.query}" if split.query else "")
                 return redirect(url_for('auth.login'))
             return f(*args, **kwargs)
         return wrapped

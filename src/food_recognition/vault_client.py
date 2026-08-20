@@ -111,11 +111,18 @@ def get_oidc_secrets() -> dict:
         _oidc_secrets_cache = {key: secrets[key] for key in _OIDC_SECRET_KEYS}
     else:
         app_logger.info("VAULT_ADDR/VAULT_TOKEN not set — reading OIDC credentials from env vars")
-        _oidc_secrets_cache = {
+        env_secrets = {
             "client_id": os.getenv("OIDC_CLIENT_ID"),
             "client_secret": os.getenv("OIDC_CLIENT_SECRET"),
             "issuer": os.getenv("OIDC_ISSUER"),
         }
+        missing = [key for key, value in env_secrets.items() if not value]
+        if missing:
+            raise ValueError(
+                f"OIDC login is required but not configured — missing env var(s): "
+                f"{[f'OIDC_{key.upper()}' for key in missing]} (and Vault isn't configured either)"
+            )
+        _oidc_secrets_cache = env_secrets
     return _oidc_secrets_cache
 
 

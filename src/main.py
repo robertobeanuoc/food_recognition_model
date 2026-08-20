@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 import os
 import pytz
-from food_recognition.auth import auth_bp, init_oauth, login_required
+from food_recognition.auth import auth_bp, init_oauth, login_required, unauthenticated_response
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
 from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register, delete_food_register, sync_schema, get_meal_schedule, update_meal_schedule, get_meal_types, utcnow, get_food_types, upsert_food_characteristics, get_meal_default_items, add_meal_default_item, update_meal_default_item, delete_meal_default_item
@@ -34,7 +34,7 @@ additionnal_static: Blueprint = Blueprint('additional_static', __name__, static_
 @additionnal_static.before_request
 def _require_login_for_photos():
     if 'user' not in session:
-        return {"error": "unauthenticated"}, 401
+        return unauthenticated_response()
 
 
 app.register_blueprint(additionnal_static)
@@ -42,10 +42,14 @@ app.register_blueprint(auth_bp)
 
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SECRET_KEY"] = app.secret_key
+# Explicit rather than relying on Flask's default: blocks the session cookie
+# from being sent on cross-site subresource/form requests to the now-session-
+# gated mutation routes (e.g. api_update_food_register), while still allowing
+# it on the top-level redirect back from Authentik's /auth/callback.
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 UPLOAD_FOLDER:str = 'food_recognition/static/uploads'
 
 Session(app)
-init_oauth(app)
 
 # Sync the DB schema with the current SQLAlchemy models (creates any missing
 # tables, e.g. meal_schedule) as soon as the app connects to the database.
@@ -64,6 +68,7 @@ def _run_slack_bot() -> None:
 # worker process — only WERKZEUG_RUN_MAIN='true' identifies the worker, so
 # guard against starting the scheduler/Slack bot twice.
 if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+    init_oauth(app)
     reminder_scheduler.start_scheduler()
     threading.Thread(target=_run_slack_bot, daemon=True, name="slack-bot").start()
 
@@ -115,7 +120,7 @@ def index():
     return render_template('index.html')
 
 @app.route('/upload', methods=['POST','GET'])
-@login_required
+@login_required(api=True)
 def upload():
     
     if 'file' not in request.files:
@@ -195,7 +200,7 @@ def save_files_to_storage(file_image:str, file_json:str):
 
 
 @app.route('/update_values', methods=['POST'])
-@login_required
+@login_required(api=True)
 def update_values():
     app_logger.info("Updating values ..")
     num_food_types:int = 0
@@ -213,7 +218,7 @@ def update_values():
 
 
 @app.route('/update_food_register/<uuid>/<food_type>/<int:glycemic_index>/<int:weight_grams>/<int:verified>', methods=['GET'])
-@login_required
+@login_required(api=True)
 def api_update_food_register(uuid:str, food_type:str, glycemic_index:int, weight_grams:int, verified:int):
 
     validate_uuid(uuid)
