@@ -8,6 +8,7 @@ from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 from food_recognition import db, vault_client
+from food_recognition.constants import DEFAULT_OWNER_USER_ID
 from food_recognition.food_classification import classify_food_characteristics
 from food_recognition.utils import app_logger
 
@@ -286,7 +287,7 @@ def _build_modal_view(meal_type: str, meal_date: datetime.date, items: list[dict
     if not items:
         items = [{"food_type": None, "weight_grams": None}]
 
-    catalog = db.get_food_types_ranked_by_usage(meal_type)
+    catalog = db.get_food_types_ranked_by_usage(meal_type, DEFAULT_OWNER_USER_ID)
 
     blocks: list[dict] = [
         {
@@ -389,7 +390,7 @@ def _register_handlers(app: App) -> None:
     def handle_register_food_meal_type_submission(ack, view):
         meal_type = view["state"]["values"]["meal_type_block"]["meal_type_select"]["selected_option"]["value"]
         meal_date = _local_today()
-        items = db.get_next_default_preset(meal_type, meal_date)
+        items = db.get_next_default_preset(meal_type, meal_date, DEFAULT_OWNER_USER_ID)
         # response_action "push" opens a new modal on top of this one without
         # needing a fresh trigger_id — same food-item modal the reminder DM's
         # "Log now" button opens.
@@ -401,7 +402,7 @@ def _register_handlers(app: App) -> None:
         payload = json.loads(body["actions"][0]["value"])
         meal_type = payload["meal_type"]
         meal_date = datetime.date.fromisoformat(payload["meal_date"])
-        items = db.get_next_default_preset(meal_type, meal_date)
+        items = db.get_next_default_preset(meal_type, meal_date, DEFAULT_OWNER_USER_ID)
         client.views_open(
             trigger_id=body["trigger_id"],
             view=_build_modal_view(meal_type, meal_date, items),
@@ -482,7 +483,7 @@ def _register_handlers(app: App) -> None:
         # have happened) still lands in its own meal_schedule window instead
         # of whatever window the actual submission time falls into.
         is_weekend = meal_date.weekday() >= 5
-        start_time = db.get_meal_schedule_start_time(meal_type, is_weekend)
+        start_time = db.get_meal_schedule_start_time(meal_type, is_weekend, DEFAULT_OWNER_USER_ID)
         created_at = datetime.datetime.combine(meal_date, start_time or db.utcnow().time())
         for item in parsed_items:
             food_type = item["resolved_food_type"]
@@ -524,13 +525,14 @@ def _register_handlers(app: App) -> None:
                 food_type=food_type,
                 glycemic_index=glycemic_index,
                 weight_grams=weight_grams,
+                owner_user_id=DEFAULT_OWNER_USER_ID,
                 meal_type=meal_type,
                 carbohydrate_percentage=carbohydrate_percentage,
                 carbohydrate_weight_grams=carbohydrate_weight_grams,
                 absorption_type=absorption_type,
                 created_at=created_at,
             )
-        db.mark_meal_reminder_resolved(meal_type, meal_date)
+        db.mark_meal_reminder_resolved(meal_type, meal_date, DEFAULT_OWNER_USER_ID)
 
         secrets = vault_client.get_slack_secrets()
         meal_label = _MEAL_TYPE_LABEL.get(meal_type, meal_type)

@@ -5,6 +5,7 @@ import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from food_recognition import db, slack_bot
+from food_recognition.constants import DEFAULT_OWNER_USER_ID
 from food_recognition.utils import app_logger
 
 _scheduler: BackgroundScheduler | None = None
@@ -46,7 +47,7 @@ def _current_meal_context(
     """
     started = [
         row
-        for row in db.get_meal_schedule()
+        for row in db.get_meal_schedule(DEFAULT_OWNER_USER_ID)
         if row["is_weekend"] == is_weekend
         and _meal_window_utc_datetime(local_today, row["start_time"]) <= now_utc
     ]
@@ -67,6 +68,10 @@ def check_and_send_meal_reminders(
     now_utc/local_today/is_weekend default to the real current time (resolved
     via APP_TIMEZONE) — the parameters exist so tests can drive this with a
     controlled "now" instead of depending on wall-clock time.
+
+    Reminders are tracked against DEFAULT_OWNER_USER_ID — there's no logged-in
+    user in a background job, and Slack today only ever notifies one person
+    anyway (see constants.py).
     """
     if now_utc is None or local_today is None or is_weekend is None:
         tz = _app_timezone()
@@ -74,7 +79,7 @@ def check_and_send_meal_reminders(
         now_utc = datetime.datetime.now(tz=pytz.utc).replace(tzinfo=None)
     current_meal_context = _current_meal_context(now_utc, local_today, is_weekend)
 
-    for row in db.get_meal_schedule():
+    for row in db.get_meal_schedule(DEFAULT_OWNER_USER_ID):
         if row["is_weekend"] != is_weekend:
             continue
 
@@ -83,11 +88,11 @@ def check_and_send_meal_reminders(
             continue
 
         meal_type = row["meal_type"]
-        if db.has_food_register_for_meal(meal_type, local_today):
-            db.mark_meal_reminder_resolved(meal_type, local_today)
+        if db.has_food_register_for_meal(meal_type, local_today, DEFAULT_OWNER_USER_ID):
+            db.mark_meal_reminder_resolved(meal_type, local_today, DEFAULT_OWNER_USER_ID)
             continue
 
-        log = db.get_or_create_meal_reminder_log(meal_type, local_today)
+        log = db.get_or_create_meal_reminder_log(meal_type, local_today, DEFAULT_OWNER_USER_ID)
         if log["notified_at"] is None:
             slack_bot.send_reminder(meal_type, local_today, escalation=False)
             db.mark_meal_reminder_notified(log["uuid"], current_meal_context or meal_type)

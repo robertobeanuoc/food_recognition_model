@@ -18,6 +18,9 @@ services:
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
       OIDC_ISSUER: ${OIDC_ISSUER}
+      # Authentik user UUID that Slack/scheduler rows (no logged-in session)
+      # are attributed to — see constants.py:DEFAULT_OWNER_USER_ID.
+      DEFAULT_OWNER_USER_ID: ${DEFAULT_OWNER_USER_ID}
       VAULT_ADDR: ${VAULT_ADDR}
       VAULT_TOKEN: ${VAULT_TOKEN}
       VAULT_MOUNT_POINT: ${VAULT_MOUNT_POINT:-secret}

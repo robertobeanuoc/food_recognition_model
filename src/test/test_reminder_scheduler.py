@@ -3,6 +3,7 @@ import datetime
 import pytest
 
 from food_recognition import db, reminder_scheduler
+from food_recognition.constants import DEFAULT_OWNER_USER_ID
 
 
 @pytest.fixture
@@ -22,7 +23,7 @@ def sent_reminders(monkeypatch):
 def _schedule_row(meal_type: str, is_weekend: bool = False) -> dict:
     return next(
         row
-        for row in db.get_meal_schedule()
+        for row in db.get_meal_schedule(DEFAULT_OWNER_USER_ID)
         if row["meal_type"] == meal_type and row["is_weekend"] == is_weekend
     )
 
@@ -35,6 +36,7 @@ def test_no_reminder_when_meal_already_registered(sent_reminders):
         food_type="omelette",
         glycemic_index=40,
         weight_grams=150,
+        owner_user_id=DEFAULT_OWNER_USER_ID,
         meal_type="breakfast",
         created_at=datetime.datetime.combine(local_today, breakfast["start_time"]),
     )
@@ -93,6 +95,23 @@ def test_initial_reminder_then_escalation_at_next_meal_window(sent_reminders):
         ("breakfast", local_today, True),
     ]
 
-    log = db.get_or_create_meal_reminder_log("breakfast", local_today)
+    log = db.get_or_create_meal_reminder_log("breakfast", local_today, DEFAULT_OWNER_USER_ID)
     assert log["notified_at"] is not None
     assert log["last_nudge_meal_context"] == "lunch"
+
+
+def test_reminder_log_is_scoped_to_default_owner(sent_reminders):
+    """get_or_create_meal_reminder_log must not collide across owners now
+    that meal_reminder_log's uniqueness includes owner_user_id — a log
+    entry for the same (meal_type, meal_date) but a different owner is a
+    distinct row, not the same one reused."""
+    local_today = datetime.date(2026, 3, 4)
+
+    default_owner_log = db.get_or_create_meal_reminder_log("dinner", local_today, DEFAULT_OWNER_USER_ID)
+    other_owner_log = db.get_or_create_meal_reminder_log("dinner", local_today, "some-other-owner")
+
+    assert default_owner_log["uuid"] != other_owner_log["uuid"]
+
+    db.mark_meal_reminder_notified(default_owner_log["uuid"], "dinner")
+    refreshed_other_owner_log = db.get_or_create_meal_reminder_log("dinner", local_today, "some-other-owner")
+    assert refreshed_other_owner_log["notified_at"] is None

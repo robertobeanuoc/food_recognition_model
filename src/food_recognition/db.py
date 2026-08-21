@@ -60,13 +60,13 @@ def sync_schema() -> None:
     sync with db_models.py programmatically, instead of requiring a manual
     `mysql ... < sql_scripts/tables/*.sql` step. This only creates missing
     tables (SQLAlchemy's create_all is not a migration tool) — it never
-    alters or drops existing tables/columns.
+    alters or drops existing tables/columns, except for the one explicit,
+    idempotent migration below.
     """
     Base.metadata.create_all(_engine)
     _drop_legacy_uuid_triggers()
+    _migrate_add_owner_user_id_columns()
     _seed_meal_type()
-    _seed_meal_schedule()
-    _seed_meal_default_items()
     app_logger.info("Database schema synced")
 
 
@@ -79,6 +79,80 @@ def _drop_legacy_uuid_triggers() -> None:
     with _engine.begin() as connection:
         connection.execute(text("DROP TRIGGER IF EXISTS before_insert_food_registers"))
         connection.execute(text("DROP TRIGGER IF EXISTS before_insert_meal_schedule"))
+
+
+def _migrate_unique_index(
+    connection, table_name: str, old_index_name: str, new_index_name: str, new_index_columns: str
+) -> None:
+    """Swap a table's unique index for one that also covers owner_user_id.
+
+    The new index is added *before* the old one is dropped because several
+    of these tables have a FOREIGN KEY into meal_type.meal_type, and MySQL
+    refuses to drop whichever index currently satisfies that constraint
+    unless another one covering the same leading column already exists.
+    Only touched if the old index is still there, checked via
+    information_schema so this is safe to run on every startup.
+    """
+    old_index_exists = connection.execute(
+        text(
+            "SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() "
+            "AND TABLE_NAME = :table_name AND INDEX_NAME = :index_name"
+        ),
+        {"table_name": table_name, "index_name": old_index_name},
+    ).first()
+    new_index_exists = connection.execute(
+        text(
+            "SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() "
+            "AND TABLE_NAME = :table_name AND INDEX_NAME = :index_name"
+        ),
+        {"table_name": table_name, "index_name": new_index_name},
+    ).first()
+    if old_index_exists and not new_index_exists:
+        connection.execute(text(f"ALTER TABLE {table_name} ADD UNIQUE INDEX {new_index_name} ({new_index_columns})"))
+        connection.execute(text(f"ALTER TABLE {table_name} DROP INDEX {old_index_name}"))
+        app_logger.info(f"Migrated {table_name}'s unique index to include owner_user_id")
+
+
+def _migrate_add_owner_user_id_columns() -> None:
+    """One-time, idempotent addition of `owner_user_id` to the four per-user
+    tables (create_all() only creates whole tables that don't exist yet, it
+    never alters existing ones — see sync_schema()).
+
+    meal_reminder_log and meal_schedule also each need their uniqueness to
+    grow by one column now that they're tracked per person, or two people's
+    rows for the same (meal_type, meal_date) / (meal_type, is_weekend) would
+    collide on one row. meal_default_item has no unique constraint to
+    migrate, just the new column.
+    """
+    with _engine.begin() as connection:
+        # MySQL (unlike MariaDB) has no `ADD COLUMN IF NOT EXISTS` — check
+        # information_schema first instead.
+        for table_name in ("food_register", "meal_reminder_log", "meal_schedule", "meal_default_item"):
+            column_exists = connection.execute(
+                text(
+                    "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() "
+                    "AND TABLE_NAME = :table_name AND COLUMN_NAME = 'owner_user_id'"
+                ),
+                {"table_name": table_name},
+            ).first()
+            if not column_exists:
+                connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN owner_user_id VARCHAR(255)"))
+                app_logger.info(f"Added owner_user_id column to {table_name}")
+
+        _migrate_unique_index(
+            connection,
+            table_name="meal_reminder_log",
+            old_index_name="idx_meal_type_date",
+            new_index_name="idx_meal_type_date_owner",
+            new_index_columns="meal_type, meal_date, owner_user_id",
+        )
+        _migrate_unique_index(
+            connection,
+            table_name="meal_schedule",
+            old_index_name="idx_meal_type_weekend",
+            new_index_name="idx_meal_type_weekend_owner",
+            new_index_columns="meal_type, is_weekend, owner_user_id",
+        )
 
 
 def _seed_meal_type() -> None:
@@ -98,14 +172,18 @@ def _seed_meal_type() -> None:
             app_logger.info(f"Added '{OTHER_MEAL_TYPE}' fallback meal_type")
 
 
-def _seed_meal_schedule() -> None:
+def _seed_meal_schedule(owner_user_id: str) -> None:
+    """Give a person their own starting habitual meal-time ranges the first
+    time their schedule is requested (see get_meal_schedule()) — each owner
+    gets an independent copy of _DEFAULT_MEAL_SCHEDULE, not a shared one.
+    """
     with _SessionFactory() as session:
-        if session.query(MealSchedule).count() > 0:
+        if session.query(MealSchedule).filter(MealSchedule.owner_user_id == owner_user_id).count() > 0:
             return
         for row in _DEFAULT_MEAL_SCHEDULE:
-            session.add(MealSchedule(**row))
+            session.add(MealSchedule(**row, owner_user_id=owner_user_id))
         session.commit()
-        app_logger.info("Seeded meal_schedule with default habitual time ranges")
+        app_logger.info(f"Seeded meal_schedule with default habitual time ranges for {owner_user_id}")
 
 
 # Default habitual breakfast (preset_order=1, every day of the week) seeded
@@ -114,9 +192,19 @@ def _seed_meal_schedule() -> None:
 _DEFAULT_BREAKFAST_PRESET: list[tuple[str, int]] = [("milk", 200), ("banana", 120)]
 
 
-def _seed_meal_default_items() -> None:
+def _seed_meal_default_items(owner_user_id: str) -> None:
+    """Give a person their own starting breakfast preset (milk + banana) the
+    first time their presets are requested (see get_meal_default_items()) —
+    lunch/dinner start with no presets configured, filled in later from the
+    /meal_default_presets UI, same as before this was scoped per owner.
+    """
     with _SessionFactory() as session:
-        if session.query(MealDefaultItem).filter(MealDefaultItem.meal_type == "breakfast").count() > 0:
+        if (
+            session.query(MealDefaultItem)
+            .filter(MealDefaultItem.meal_type == "breakfast", MealDefaultItem.owner_user_id == owner_user_id)
+            .count()
+            > 0
+        ):
             return
         now = utcnow()
         for day_of_week in range(7):
@@ -131,14 +219,16 @@ def _seed_meal_default_items() -> None:
                         weight_grams=weight_grams,
                         created_at=now,
                         updated_at=now,
+                        owner_user_id=owner_user_id,
                     )
                 )
         session.commit()
-        app_logger.info("Seeded meal_default_item with a default breakfast preset (milk + banana)")
+        app_logger.info(f"Seeded meal_default_item with a default breakfast preset (milk + banana) for {owner_user_id}")
 
 
-def get_meal_type_for_time(time_of_day: datetime.time, is_weekend: bool) -> str:
-    """Look up the meal_type whose habitual meal_schedule range covers `time_of_day`.
+def get_meal_type_for_time(time_of_day: datetime.time, is_weekend: bool, owner_user_id: str) -> str:
+    """Look up the meal_type whose habitual meal_schedule range covers `time_of_day`
+    for `owner_user_id` (each person has their own habitual ranges).
 
     `time_of_day` must already be in the same reference frame as
     meal_schedule.start_time/end_time — both are stored as UTC time-of-day
@@ -154,6 +244,7 @@ def get_meal_type_for_time(time_of_day: datetime.time, is_weekend: bool) -> str:
             MealSchedule.is_weekend == is_weekend,
             MealSchedule.start_time <= time_of_day,
             MealSchedule.end_time >= time_of_day,
+            MealSchedule.owner_user_id == owner_user_id,
         )
         app_logger.info(f"Query: {query}")
 
@@ -164,10 +255,10 @@ def get_meal_type_for_time(time_of_day: datetime.time, is_weekend: bool) -> str:
     return record[0] if record else OTHER_MEAL_TYPE
 
 
-def get_meal_schedule_start_time(meal_type: str, is_weekend: bool) -> datetime.time | None:
-    """The habitual start_time (UTC time-of-day) for (meal_type, is_weekend), or
-    None if meal_type isn't part of meal_schedule (e.g. OTHER_MEAL_TYPE, which
-    is deliberately excluded — see _seed_meal_type()).
+def get_meal_schedule_start_time(meal_type: str, is_weekend: bool, owner_user_id: str) -> datetime.time | None:
+    """The habitual start_time (UTC time-of-day) for (meal_type, is_weekend, owner_user_id),
+    or None if meal_type isn't part of that owner's meal_schedule (e.g.
+    OTHER_MEAL_TYPE, which is deliberately excluded — see _seed_meal_type()).
 
     Used to backdate food_register.created_at to when a meal habitually
     starts for manual-log flows (e.g. the Slack modal) that don't carry an
@@ -177,16 +268,27 @@ def get_meal_schedule_start_time(meal_type: str, is_weekend: bool) -> datetime.t
     with _SessionFactory() as session:
         record = (
             session.query(MealSchedule.start_time)
-            .filter(MealSchedule.meal_type == meal_type, MealSchedule.is_weekend == is_weekend)
+            .filter(
+                MealSchedule.meal_type == meal_type,
+                MealSchedule.is_weekend == is_weekend,
+                MealSchedule.owner_user_id == owner_user_id,
+            )
             .first()
         )
         return record[0] if record else None
 
 
-def _classify_meal_type(created_at: datetime.datetime) -> str:
-    """Classify a (naive UTC) created_at into a meal_type via get_meal_type_for_time()."""
+def _classify_meal_type(created_at: datetime.datetime, owner_user_id: str) -> str:
+    """Classify a (naive UTC) created_at into a meal_type via get_meal_type_for_time().
+
+    Seeds `owner_user_id`'s meal_schedule first (a no-op once it exists) so a
+    person's very first upload — before they've ever visited /meal_schedule —
+    still gets classified against their default ranges instead of falling
+    back to OTHER_MEAL_TYPE for lack of any configured schedule.
+    """
+    _seed_meal_schedule(owner_user_id)
     is_weekend: bool = created_at.weekday() >= 5  # Monday=0 .. Sunday=6
-    return get_meal_type_for_time(time_of_day=created_at.time(), is_weekend=is_weekend)
+    return get_meal_type_for_time(time_of_day=created_at.time(), is_weekend=is_weekend, owner_user_id=owner_user_id)
 
 
 def _ensure_food_characteristics(
@@ -226,6 +328,7 @@ def insert_food_type(
     food_type: str,
     glycemic_index: int,
     weight_grams: int,
+    owner_user_id: str,
     meal_type: str = None,
     carbohydrate_percentage: float = None,
     carbohydrate_weight_grams: float = None,
@@ -235,7 +338,7 @@ def insert_food_type(
     if created_at is None:
         created_at = utcnow()
     if meal_type is None:
-        meal_type = _classify_meal_type(created_at)
+        meal_type = _classify_meal_type(created_at, owner_user_id)
 
     _ensure_food_characteristics(
         food_type=food_type,
@@ -259,6 +362,7 @@ def insert_food_type(
             carbohydrate_weight_grams=carbohydrate_weight_grams,
             absorption_type=absorption_type,
             created_at=created_at,
+            owner_user_id=owner_user_id,
         )
         session.add(food_register)
         app_logger.info("Record inserted successfully")
@@ -271,6 +375,7 @@ def insert_food_type(
 
 def update_food_register(
     uuid: str,
+    owner_user_id: str,
     food_type: str = None,
     glycemic_index: int = None,
     weight_grams: int = None,
@@ -306,9 +411,9 @@ def update_food_register(
     with _SessionFactory() as session:
         app_logger.info("Connected to the database")
 
-        session.query(FoodRegister).filter(FoodRegister.uuid == uuid).update(
-            values, synchronize_session=False
-        )
+        session.query(FoodRegister).filter(
+            FoodRegister.uuid == uuid, FoodRegister.owner_user_id == owner_user_id
+        ).update(values, synchronize_session=False)
         app_logger.info("Record inserted successfully")
 
         session.commit()
@@ -317,13 +422,13 @@ def update_food_register(
     app_logger.info("Connection closed")
 
 
-def delete_food_register(uuid: str) -> None:
+def delete_food_register(uuid: str, owner_user_id: str) -> None:
     with _SessionFactory() as session:
         app_logger.info("Connected to the database")
 
-        session.query(FoodRegister).filter(FoodRegister.uuid == uuid).delete(
-            synchronize_session=False
-        )
+        session.query(FoodRegister).filter(
+            FoodRegister.uuid == uuid, FoodRegister.owner_user_id == owner_user_id
+        ).delete(synchronize_session=False)
         app_logger.info("Record deleted successfully")
 
         session.commit()
@@ -363,7 +468,9 @@ def get_food_types(food_type: str = "") -> list[dict]:
 
 
 def get_food_registers(
-    start_date: datetime.date | datetime.datetime = None, file_uid: str = None
+    owner_user_id: str,
+    start_date: datetime.date | datetime.datetime = None,
+    file_uid: str = None,
 ) -> list[dict]:
     """`created_at` is stored as naive UTC — pass `start_date` already in UTC
     (callers with a browser-local date should convert local midnight to UTC
@@ -371,7 +478,7 @@ def get_food_registers(
     with _SessionFactory() as session:
         app_logger.info("Connected to the database")
 
-        query = session.query(FoodRegister)
+        query = session.query(FoodRegister).filter(FoodRegister.owner_user_id == owner_user_id)
         if file_uid:
             query = query.filter(FoodRegister.file_uid == file_uid)
         if start_date:
@@ -412,7 +519,13 @@ def update_food_register_similar_food(
 ) -> None:
     """Persist the result of similar_food.py:find_similar_food() for one row,
     so subsequent /view_photo loads can reuse it instead of calling OpenAI
-    again (see add_similar_food_info_to_food())."""
+    again (see add_similar_food_info_to_food()).
+
+    No owner_user_id filter: this always operates on a uuid already resolved
+    from an owner-scoped get_food_registers() call (see main.py:view_photo()
+    -> similar_food.py:add_similar_food_info_to_food()), so re-checking the
+    owner here would be redundant.
+    """
     with _SessionFactory() as session:
         session.query(FoodRegister).filter(FoodRegister.uuid == uuid).update(
             {"similar_food": similar_food, "similar_glycemic_index": similar_glycemic_index},
@@ -468,7 +581,7 @@ def get_glycemic_index(food_type: str) -> int:
     return ret_glycemic_index
 
 
-def get_food_types_ranked_by_usage(meal_type: str, days: int = 14) -> list[dict]:
+def get_food_types_ranked_by_usage(meal_type: str, owner_user_id: str, days: int = 14) -> list[dict]:
     """food_characteristics catalog (food_type/food_type_es), ordered by how
     often each food_type was logged for `meal_type` in the last `days` days
     (most frequent first), then alphabetically for the rest of the catalog
@@ -480,7 +593,11 @@ def get_food_types_ranked_by_usage(meal_type: str, days: int = 14) -> list[dict]
     with _SessionFactory() as session:
         usage_rows = (
             session.query(FoodRegister.food_type, func.count(FoodRegister.uuid).label("usage_count"))
-            .filter(FoodRegister.meal_type == meal_type, FoodRegister.created_at >= cutoff)
+            .filter(
+                FoodRegister.meal_type == meal_type,
+                FoodRegister.created_at >= cutoff,
+                FoodRegister.owner_user_id == owner_user_id,
+            )
             .group_by(FoodRegister.food_type)
             .order_by(text("usage_count DESC"), FoodRegister.food_type)
             .all()
@@ -566,7 +683,7 @@ def upsert_food_characteristics(
 
 
 def update_verfied(
-    verfied: int, uuid: str = "", file_uid: str = "", food_type: str = ""
+    verfied: int, owner_user_id: str, uuid: str = "", file_uid: str = "", food_type: str = ""
 ):
     if uuid == "":
         if file_uid == "" or food_type == "":
@@ -577,7 +694,7 @@ def update_verfied(
     with _SessionFactory() as session:
         app_logger.info("Connected to the database")
 
-        query = session.query(FoodRegister)
+        query = session.query(FoodRegister).filter(FoodRegister.owner_user_id == owner_user_id)
         if uuid != "":
             query = query.filter(FoodRegister.uuid == uuid)
         else:
@@ -597,6 +714,7 @@ def update_verfied(
 
 def update_meal_schedule(
     uuid: str,
+    owner_user_id: str,
     start_time: datetime.time,
     end_time: datetime.time,
     updated_at: datetime.datetime = None,
@@ -607,7 +725,9 @@ def update_meal_schedule(
     with _SessionFactory() as session:
         app_logger.info("Connected to the database")
 
-        session.query(MealSchedule).filter(MealSchedule.uuid == uuid).update(
+        session.query(MealSchedule).filter(
+            MealSchedule.uuid == uuid, MealSchedule.owner_user_id == owner_user_id
+        ).update(
             {
                 "start_time": start_time,
                 "end_time": end_time,
@@ -623,12 +743,15 @@ def update_meal_schedule(
     app_logger.info("Connection closed")
 
 
-def get_meal_schedule() -> list[dict]:
+def get_meal_schedule(owner_user_id: str) -> list[dict]:
+    _seed_meal_schedule(owner_user_id)
     with _SessionFactory() as session:
         app_logger.info("Connected to the database")
 
-        query = session.query(MealSchedule).order_by(
-            MealSchedule.meal_type, MealSchedule.is_weekend
+        query = (
+            session.query(MealSchedule)
+            .filter(MealSchedule.owner_user_id == owner_user_id)
+            .order_by(MealSchedule.meal_type, MealSchedule.is_weekend)
         )
         app_logger.info(f"Query: {query}")
 
@@ -673,13 +796,18 @@ def get_meal_types() -> list[str]:
     return sorted(meal_types, key=lambda m: (_MEAL_TYPE_ORDER.get(m, len(_MEAL_TYPE_ORDER)), m))
 
 
-def get_meal_default_items() -> list[dict]:
+def get_meal_default_items(owner_user_id: str) -> list[dict]:
+    _seed_meal_default_items(owner_user_id)
     with _SessionFactory() as session:
-        query = session.query(MealDefaultItem).order_by(
-            MealDefaultItem.meal_type,
-            MealDefaultItem.day_of_week,
-            MealDefaultItem.preset_order,
-            MealDefaultItem.item_order,
+        query = (
+            session.query(MealDefaultItem)
+            .filter(MealDefaultItem.owner_user_id == owner_user_id)
+            .order_by(
+                MealDefaultItem.meal_type,
+                MealDefaultItem.day_of_week,
+                MealDefaultItem.preset_order,
+                MealDefaultItem.item_order,
+            )
         )
         records = query.all()
         return [
@@ -702,6 +830,7 @@ def add_meal_default_item(
     preset_order: int,
     item_order: int,
     food_type: str,
+    owner_user_id: str,
     weight_grams: int = None,
 ) -> str:
     now = utcnow()
@@ -715,6 +844,7 @@ def add_meal_default_item(
             weight_grams=weight_grams,
             created_at=now,
             updated_at=now,
+            owner_user_id=owner_user_id,
         )
         session.add(item)
         session.commit()
@@ -722,7 +852,7 @@ def add_meal_default_item(
 
 
 def update_meal_default_item(
-    uuid: str, food_type: str = None, weight_grams: int = None
+    uuid: str, owner_user_id: str, food_type: str = None, weight_grams: int = None
 ) -> None:
     values: dict = {"updated_at": utcnow()}
     if food_type != None and food_type != "":
@@ -731,30 +861,31 @@ def update_meal_default_item(
         values["weight_grams"] = weight_grams
 
     with _SessionFactory() as session:
-        session.query(MealDefaultItem).filter(MealDefaultItem.uuid == uuid).update(
-            values, synchronize_session=False
-        )
+        session.query(MealDefaultItem).filter(
+            MealDefaultItem.uuid == uuid, MealDefaultItem.owner_user_id == owner_user_id
+        ).update(values, synchronize_session=False)
         session.commit()
 
 
-def delete_meal_default_item(uuid: str) -> None:
+def delete_meal_default_item(uuid: str, owner_user_id: str) -> None:
     with _SessionFactory() as session:
-        session.query(MealDefaultItem).filter(MealDefaultItem.uuid == uuid).delete(
-            synchronize_session=False
-        )
+        session.query(MealDefaultItem).filter(
+            MealDefaultItem.uuid == uuid, MealDefaultItem.owner_user_id == owner_user_id
+        ).delete(synchronize_session=False)
         session.commit()
 
 
-def get_next_default_preset(meal_type: str, target_date: datetime.date) -> list[dict]:
+def get_next_default_preset(meal_type: str, target_date: datetime.date, owner_user_id: str) -> list[dict]:
     """Pick which habitual preset to suggest for `meal_type` on `target_date`.
 
     Presets for (meal_type, target_date.weekday()) are numbered by
     preset_order; the suggested one is presets[N % len(presets)], where N is
     how many distinct calendar days this week (Monday..target_date) already
-    have a food_register row for meal_type — so once a meal's been logged
-    once this week, the next reminder rotates to the next habitual option
-    instead of repeating the same suggestion. Returns [] if no presets are
-    configured for that meal_type/day.
+    have a food_register row for meal_type (for `owner_user_id`) — so once a
+    meal's been logged once this week, the next reminder rotates to the next
+    habitual option instead of repeating the same suggestion. Returns [] if
+    no presets are configured for that meal_type/day. Presets (meal_default_item)
+    are per-owner, same as the usage they're rotated against.
 
     `target_date`/week boundaries are compared against food_register's
     naive-UTC created_at directly (same simplification already accepted
@@ -770,6 +901,7 @@ def get_next_default_preset(meal_type: str, target_date: datetime.date) -> list[
             .filter(
                 MealDefaultItem.meal_type == meal_type,
                 MealDefaultItem.day_of_week == day_of_week,
+                MealDefaultItem.owner_user_id == owner_user_id,
             )
             .distinct()
             .order_by(MealDefaultItem.preset_order)
@@ -787,6 +919,7 @@ def get_next_default_preset(meal_type: str, target_date: datetime.date) -> list[
                 FoodRegister.meal_type == meal_type,
                 FoodRegister.created_at >= datetime.datetime.combine(week_start, datetime.time.min),
                 FoodRegister.created_at < week_end_exclusive,
+                FoodRegister.owner_user_id == owner_user_id,
             )
             .distinct()
             .count()
@@ -799,6 +932,7 @@ def get_next_default_preset(meal_type: str, target_date: datetime.date) -> list[
                 MealDefaultItem.meal_type == meal_type,
                 MealDefaultItem.day_of_week == day_of_week,
                 MealDefaultItem.preset_order == chosen_preset_order,
+                MealDefaultItem.owner_user_id == owner_user_id,
             )
             .order_by(MealDefaultItem.item_order)
             .all()
@@ -806,7 +940,7 @@ def get_next_default_preset(meal_type: str, target_date: datetime.date) -> list[
         return [{"food_type": item.food_type, "weight_grams": item.weight_grams} for item in items]
 
 
-def has_food_register_for_meal(meal_type: str, meal_date: datetime.date) -> bool:
+def has_food_register_for_meal(meal_type: str, meal_date: datetime.date, owner_user_id: str) -> bool:
     day_start = datetime.datetime.combine(meal_date, datetime.time.min)
     day_end = datetime.datetime.combine(meal_date, datetime.time.max)
     with _SessionFactory() as session:
@@ -816,21 +950,26 @@ def has_food_register_for_meal(meal_type: str, meal_date: datetime.date) -> bool
                 FoodRegister.meal_type == meal_type,
                 FoodRegister.created_at >= day_start,
                 FoodRegister.created_at <= day_end,
+                FoodRegister.owner_user_id == owner_user_id,
             )
             .first()
         )
         return exists is not None
 
 
-def get_or_create_meal_reminder_log(meal_type: str, meal_date: datetime.date) -> dict:
+def get_or_create_meal_reminder_log(meal_type: str, meal_date: datetime.date, owner_user_id: str) -> dict:
     with _SessionFactory() as session:
         record = (
             session.query(MealReminderLog)
-            .filter(MealReminderLog.meal_type == meal_type, MealReminderLog.meal_date == meal_date)
+            .filter(
+                MealReminderLog.meal_type == meal_type,
+                MealReminderLog.meal_date == meal_date,
+                MealReminderLog.owner_user_id == owner_user_id,
+            )
             .first()
         )
         if record is None:
-            record = MealReminderLog(meal_type=meal_type, meal_date=meal_date)
+            record = MealReminderLog(meal_type=meal_type, meal_date=meal_date, owner_user_id=owner_user_id)
             session.add(record)
             session.commit()
             session.refresh(record)
@@ -863,11 +1002,12 @@ def mark_meal_reminder_nudged(uuid: str, meal_type_context: str) -> None:
         session.commit()
 
 
-def mark_meal_reminder_resolved(meal_type: str, meal_date: datetime.date) -> None:
+def mark_meal_reminder_resolved(meal_type: str, meal_date: datetime.date, owner_user_id: str) -> None:
     with _SessionFactory() as session:
         session.query(MealReminderLog).filter(
             MealReminderLog.meal_type == meal_type,
             MealReminderLog.meal_date == meal_date,
+            MealReminderLog.owner_user_id == owner_user_id,
             MealReminderLog.resolved_at.is_(None),
         ).update({"resolved_at": utcnow()}, synchronize_session=False)
         session.commit()
