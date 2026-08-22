@@ -5,12 +5,39 @@ import uuid as uuid_lib
 
 import pytz
 from slack_bolt import App
-from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 from food_recognition import db, vault_client
 from food_recognition.food_classification import classify_food_characteristics
 from food_recognition.utils import app_logger
 
+# TODO(chat-identity): this whole module is disabled (see start_bot() below)
+# — there is no link between a Slack identity and an Authentik user, so
+# nothing here can safely attribute an action to an owner. There used to be
+# a DEFAULT_OWNER_USER_ID fallback constant; it was removed on purpose —
+# that kind of single-household default only ever made sense for the
+# one-time backfill script (scripts/backfill_owner_user_id.py, which takes
+# the owner as an explicit CLI argument, never imported this), not as an
+# ongoing implicit identity for a live integration. The owner must always
+# come from the application, not a hardcoded/env default.
+#
+# The real fix is bigger than "add a mapping table": every Slack event/
+# command already carries an authoritative, unspoofable Slack user_id
+# (Slack's backend fills it in, over a signed/Socket-Mode-authenticated
+# channel — verified this isn't forgeable), so per-user attribution and a
+# one-time /link <code> linking flow (Authentik session -> web-generated
+# code -> entered in Slack) are both sound *within Slack*.
+#
+# But Slack itself is the wrong long-term platform to build that on: it's
+# normally gated behind a business/enterprise workspace, not something any
+# new user can just sign up for. Before wiring per-user Slack accounts,
+# this needs a chat-provider-agnostic design — an abstraction that isn't
+# Slack-specific, that can be provisioned automatically when a user is
+# created (in whichever chat app they actually have), not something built
+# once for Slack and then reworked per provider later.
+#
+# Decided (see plan doc) to design and resolve this — not just for Slack,
+# for chat notifications generally — before rolling per-user isolation out
+# to the other three apps (Step 3), and before re-enabling this module.
 _MEAL_TYPE_LABEL: dict[str, str] = {
     "breakfast": "breakfast",
     "lunch": "lunch",
@@ -43,6 +70,23 @@ _MAX_STATIC_SELECT_OPTIONS = 100
 _app: App | None = None
 
 
+def _require_owner_user_id() -> str:
+    """There is no source for this yet — see TODO(chat-identity) above.
+
+    Every call site below only runs once a handler is actually registered
+    and invoked by Slack, which never happens today: start_bot() returns
+    before ever calling _get_app()/_register_handlers(), so this is
+    unreachable, not a live bug. It exists only so the module doesn't carry
+    a dangling reference to the DEFAULT_OWNER_USER_ID constant that used to
+    live here — replace this call with a real lookup once Slack identity
+    linking exists.
+    """
+    raise NotImplementedError(
+        "Slack chat-identity linking isn't implemented yet — see TODO(chat-identity) "
+        "at the top of this file."
+    )
+
+
 def _get_app() -> App:
     """Bolt App is created lazily (not at import time) so importing this
     module — e.g. from tests that monkeypatch send_reminder() — doesn't
@@ -56,48 +100,20 @@ def _get_app() -> App:
     return _app
 
 
-# Minimum gap between two "connection dropped" DMs — the underlying
-# slack_sdk client can fire on_close repeatedly while it's retrying a bad
-# connection, and without this a flaky network would spam the user instead
-# of sending one heads-up.
-_CONNECTION_LOST_NOTIFICATION_COOLDOWN = datetime.timedelta(minutes=5)
-
-
 def start_bot() -> None:
-    """Blocking call — run in a background daemon thread (see main.py)."""
-    secrets = vault_client.get_slack_secrets()
-    app = _get_app()
-    handler = SocketModeHandler(app, secrets["app_token"])
+    """Blocking call — run in a background daemon thread (see main.py).
 
-    last_notified: datetime.datetime | None = None
-
-    def on_close(code, reason) -> None:
-        # slack_sdk auto-reconnects on its own (see check_state()/connect_to_
-        # new_endpoint() in slack_sdk.socket_mode.builtin) — this only exists
-        # so the user isn't left wondering why a button click or command they
-        # sent during the gap silently did nothing.
-        nonlocal last_notified
-        if handler.client.closed:
-            return  # intentional shutdown, not a connectivity hiccup
-        now = datetime.datetime.now(tz=pytz.utc)
-        if last_notified and now - last_notified < _CONNECTION_LOST_NOTIFICATION_COOLDOWN:
-            return
-        last_notified = now
-        app_logger.warning(f"Slack socket connection dropped (code={code}, reason={reason}), notifying user")
-        try:
-            app.client.chat_postMessage(
-                channel=secrets["user_id"],
-                text=(
-                    "⚠️ Lost connection to Slack for a moment — reconnecting automatically. "
-                    "If you just clicked a button or ran a command and nothing happened, please try again."
-                ),
-            )
-        except Exception as e:
-            app_logger.error(f"Failed to notify user about Slack connection drop: {e}")
-
-    handler.client.on_close_listeners.append(on_close)
-    app_logger.info("Starting Slack bot (Socket Mode)")
-    handler.start()
+    Disabled for now: see TODO(chat-identity) at the top of this file.
+    There's no link between a Slack identity and an Authentik user, so
+    nothing here could safely attribute an action to an owner. Re-enable
+    once that's resolved — the previous Socket Mode connection/reconnect-
+    notification implementation is still in git history (see the commit
+    that added this TODO) rather than kept here as dead code.
+    """
+    app_logger.warning(
+        "Slack bot not started — chat-identity linking isn't implemented yet "
+        "(see TODO(chat-identity) at the top of slack_bot.py)."
+    )
 
 
 def send_reminder(meal_type: str, meal_date: datetime.date, escalation: bool = False) -> None:
@@ -286,7 +302,7 @@ def _build_modal_view(meal_type: str, meal_date: datetime.date, items: list[dict
     if not items:
         items = [{"food_type": None, "weight_grams": None}]
 
-    catalog = db.get_food_types_ranked_by_usage(meal_type)
+    catalog = db.get_food_types_ranked_by_usage(meal_type, _require_owner_user_id())
 
     blocks: list[dict] = [
         {
@@ -389,7 +405,7 @@ def _register_handlers(app: App) -> None:
     def handle_register_food_meal_type_submission(ack, view):
         meal_type = view["state"]["values"]["meal_type_block"]["meal_type_select"]["selected_option"]["value"]
         meal_date = _local_today()
-        items = db.get_next_default_preset(meal_type, meal_date)
+        items = db.get_next_default_preset(meal_type, meal_date, _require_owner_user_id())
         # response_action "push" opens a new modal on top of this one without
         # needing a fresh trigger_id — same food-item modal the reminder DM's
         # "Log now" button opens.
@@ -401,7 +417,7 @@ def _register_handlers(app: App) -> None:
         payload = json.loads(body["actions"][0]["value"])
         meal_type = payload["meal_type"]
         meal_date = datetime.date.fromisoformat(payload["meal_date"])
-        items = db.get_next_default_preset(meal_type, meal_date)
+        items = db.get_next_default_preset(meal_type, meal_date, _require_owner_user_id())
         client.views_open(
             trigger_id=body["trigger_id"],
             view=_build_modal_view(meal_type, meal_date, items),
@@ -482,7 +498,7 @@ def _register_handlers(app: App) -> None:
         # have happened) still lands in its own meal_schedule window instead
         # of whatever window the actual submission time falls into.
         is_weekend = meal_date.weekday() >= 5
-        start_time = db.get_meal_schedule_start_time(meal_type, is_weekend)
+        start_time = db.get_meal_schedule_start_time(meal_type, is_weekend, _require_owner_user_id())
         created_at = datetime.datetime.combine(meal_date, start_time or db.utcnow().time())
         for item in parsed_items:
             food_type = item["resolved_food_type"]
@@ -524,13 +540,14 @@ def _register_handlers(app: App) -> None:
                 food_type=food_type,
                 glycemic_index=glycemic_index,
                 weight_grams=weight_grams,
+                owner_user_id=_require_owner_user_id(),
                 meal_type=meal_type,
                 carbohydrate_percentage=carbohydrate_percentage,
                 carbohydrate_weight_grams=carbohydrate_weight_grams,
                 absorption_type=absorption_type,
                 created_at=created_at,
             )
-        db.mark_meal_reminder_resolved(meal_type, meal_date)
+        db.mark_meal_reminder_resolved(meal_type, meal_date, _require_owner_user_id())
 
         secrets = vault_client.get_slack_secrets()
         meal_label = _MEAL_TYPE_LABEL.get(meal_type, meal_type)

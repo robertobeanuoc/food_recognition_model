@@ -51,6 +51,12 @@ class FoodRegister(Base):
     # computed yet, not "no match found".
     similar_food = Column(String(100))
     similar_glycemic_index = Column(Integer)
+    # Authentik user `sub` this row belongs to. Nullable at the schema level
+    # only because ADD COLUMN can't backfill existing rows for free (see
+    # db.py:_migrate_add_owner_user_id_columns()) — the application always
+    # supplies it. scripts/backfill_owner_user_id.py fills in pre-existing
+    # rows once.
+    owner_user_id = Column(String(255), nullable=True)
 
 
 class FoodCharacteristics(Base):
@@ -82,7 +88,11 @@ class MealType(Base):
 class MealSchedule(Base):
     __tablename__ = "meal_schedule"
     __table_args__ = (
-        UniqueConstraint("meal_type", "is_weekend", name="idx_meal_type_weekend"),
+        # owner_user_id is part of the uniqueness (not just meal_type/
+        # is_weekend) now that each person has their own habitual meal
+        # times — see db.py:_migrate_add_owner_user_id_columns() for how an
+        # existing 2-column index gets migrated to this 3-column one.
+        UniqueConstraint("meal_type", "is_weekend", "owner_user_id", name="idx_meal_type_weekend_owner"),
     )
 
     # Client-side default, same pattern and reasoning as FoodRegister.uuid.
@@ -93,6 +103,10 @@ class MealSchedule(Base):
     end_time = Column(Time, nullable=False)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
+    # Same meaning/caveats as FoodRegister.owner_user_id above — each person
+    # has their own habitual meal-time ranges, seeded on first use (see
+    # db.py:get_meal_schedule()).
+    owner_user_id = Column(String(255), nullable=True)
 
 
 class MealDefaultItem(Base):
@@ -111,18 +125,27 @@ class MealDefaultItem(Base):
     weight_grams = Column(Integer)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
+    # Same meaning/caveats as FoodRegister.owner_user_id above — each person
+    # eats different default items, seeded on first use (see
+    # db.py:get_meal_default_items()).
+    owner_user_id = Column(String(255), nullable=True)
 
 
 class MealReminderLog(Base):
     __tablename__ = "meal_reminder_log"
     __table_args__ = (
-        UniqueConstraint("meal_type", "meal_date", name="idx_meal_type_date"),
+        # owner_user_id is part of the uniqueness (not just meal_type/
+        # meal_date) so two different people's reminder state for the same
+        # meal/day don't collide on one row — see
+        # db.py:_migrate_add_owner_user_id_columns() for how an existing
+        # 2-column index gets migrated to this 3-column one.
+        UniqueConstraint("meal_type", "meal_date", "owner_user_id", name="idx_meal_type_date_owner"),
     )
 
-    # Tracks Slack reminder state for one (meal_type, meal_date). resolved_at
-    # is a cache for observability only — the scheduler always re-derives
-    # resolution live from food_register, never trusts this flag as source of
-    # truth (see reminder_scheduler.py:check_and_send_meal_reminders()).
+    # Tracks Slack reminder state for one (meal_type, meal_date, owner_user_id).
+    # resolved_at is a cache for observability only — the scheduler always
+    # re-derives resolution live from food_register, never trusts this flag
+    # as source of truth (see reminder_scheduler.py:check_and_send_meal_reminders()).
     uuid = Column(CHAR(36), primary_key=True, default=lambda: str(uuid_lib.uuid4()))
     meal_type = Column(String(20), ForeignKey("meal_type.meal_type"), nullable=False)
     meal_date = Column(Date, nullable=False)
@@ -130,3 +153,5 @@ class MealReminderLog(Base):
     last_nudge_at = Column(DateTime)
     last_nudge_meal_context = Column(String(20))
     resolved_at = Column(DateTime)
+    # Same meaning/caveats as FoodRegister.owner_user_id above.
+    owner_user_id = Column(String(255), nullable=True)

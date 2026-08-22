@@ -163,6 +163,7 @@ def upload():
             food_type=food_type['food_type'],
             glycemic_index=food_type['glycemic_index'],
             weight_grams=food_type['weight_grams'],
+            owner_user_id=session['user']['sub'],
             carbohydrate_percentage=food_type.get('carbohydrate_percentage'),
             carbohydrate_weight_grams=food_type.get('carbohydrate_weight_grams'),
             absorption_type=food_type.get('absorption_type'),
@@ -211,7 +212,13 @@ def update_values():
         food_type = request.form[f'food_type_{i}']
         glycemic_index:int =  get_glycemic_index(food_type=food_type)
         weight_grams:int = int(request.form[f'weight_grams_{i}'])
-        update_food_register(file_uid=uuid_img, food_type=food_type, glycemic_index=glycemic_index, weight_grams=weight_grams)
+        update_food_register(
+            file_uid=uuid_img,
+            food_type=food_type,
+            glycemic_index=glycemic_index,
+            weight_grams=weight_grams,
+            owner_user_id=session['user']['sub'],
+        )
 
     return redirect(url_for('view_photo', file_uid=uuid_img))
 
@@ -235,6 +242,7 @@ def api_update_food_register(uuid:str, food_type:str, glycemic_index:int, weight
 
     update_food_register(
         uuid=uuid,
+        owner_user_id=session['user']['sub'],
         food_type=food_type,
         glycemic_index=glycemic_index,
         weight_grams=weight_grams,
@@ -252,7 +260,7 @@ def api_update_food_register(uuid:str, food_type:str, glycemic_index:int, weight
 def api_delete_food_register(uuid: str):
     validate_uuid(uuid)
     app_logger.info(f"Deleting food_register {uuid} ..")
-    delete_food_register(uuid=uuid)
+    delete_food_register(uuid=uuid, owner_user_id=session['user']['sub'])
     return {"status": "ok"}
 
 
@@ -261,7 +269,7 @@ def api_delete_food_register(uuid: str):
 def view_photo(file_uid:str):
     created_at: datetime.datetime = None
     validate_uuid(file_uid)
-    food_registers: list[dict] = get_food_registers(file_uid=file_uid)
+    food_registers: list[dict] = get_food_registers(owner_user_id=session['user']['sub'], file_uid=file_uid)
     food_registers = add_similar_food_info_to_food(food_registers=food_registers)
     if len(food_registers) != 0:
         created_at = food_registers[0]['created_at']
@@ -289,7 +297,7 @@ def meals():
     local_midnight: datetime.datetime = user_tz.localize(datetime.datetime.combine(filter_start_date, datetime.time.min))
     start_datetime_utc: datetime.datetime = local_midnight.astimezone(pytz.utc).replace(tzinfo=None)
 
-    food_registers: list[dict] = get_food_registers(start_date=start_datetime_utc)
+    food_registers: list[dict] = get_food_registers(owner_user_id=session['user']['sub'], start_date=start_datetime_utc)
     return render_template('meals.html', food_registers=food_registers, start_date=filter_start_date)
 
 
@@ -297,7 +305,7 @@ def meals():
 @login_required
 def meal_schedule():
     user_tz: datetime.tzinfo = get_request_timezone()
-    meal_schedule_rows: list[dict] = get_meal_schedule()
+    meal_schedule_rows: list[dict] = get_meal_schedule(owner_user_id=session['user']['sub'])
     for row in meal_schedule_rows:
         row['start_time'] = _utc_time_to_local(row['start_time'], user_tz)
         row['end_time'] = _utc_time_to_local(row['end_time'], user_tz)
@@ -317,7 +325,7 @@ def api_update_meal_schedule(uuid: str):
     start_time = _local_time_to_utc(local_start_time, user_tz)
     end_time = _local_time_to_utc(local_end_time, user_tz)
 
-    update_meal_schedule(uuid=uuid, start_time=start_time, end_time=end_time)
+    update_meal_schedule(uuid=uuid, owner_user_id=session['user']['sub'], start_time=start_time, end_time=end_time)
     return {"status": "ok"}
 
 
@@ -367,7 +375,7 @@ _DAY_OF_WEEK_LABELS: list[str] = ["Monday", "Tuesday", "Wednesday", "Thursday", 
 @app.route('/meal_default_presets', methods=['GET'])
 @login_required
 def meal_default_presets():
-    items: list[dict] = get_meal_default_items()
+    items: list[dict] = get_meal_default_items(owner_user_id=session['user']['sub'])
     meal_types: list[str] = [m for m in get_meal_types() if m != 'other']
     return render_template(
         'meal_default_presets.html',
@@ -398,6 +406,7 @@ def api_add_meal_default_item():
         item_order=item_order,
         food_type=food_type,
         weight_grams=weight_grams,
+        owner_user_id=session['user']['sub'],
     )
     return {"status": "ok", "uuid": new_uuid}
 
@@ -415,7 +424,9 @@ def api_update_meal_default_item(uuid: str):
     if request.form.get('weight_grams'):
         weight_grams = int(request.form['weight_grams'])
 
-    update_meal_default_item(uuid=uuid, food_type=food_type, weight_grams=weight_grams)
+    update_meal_default_item(
+        uuid=uuid, owner_user_id=session['user']['sub'], food_type=food_type, weight_grams=weight_grams
+    )
     return {"status": "ok"}
 
 
@@ -424,7 +435,7 @@ def api_update_meal_default_item(uuid: str):
 def api_delete_meal_default_item(uuid: str):
     validate_uuid(uuid)
     app_logger.info(f"Deleting meal_default_item {uuid} ..")
-    delete_meal_default_item(uuid=uuid)
+    delete_meal_default_item(uuid=uuid, owner_user_id=session['user']['sub'])
     return {"status": "ok"}
 
 
