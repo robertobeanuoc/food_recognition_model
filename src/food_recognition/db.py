@@ -3,15 +3,20 @@ import pytz
 from sqlalchemy import create_engine, func, text
 from sqlalchemy.orm import sessionmaker
 
+import random
+
 from food_recognition import vault_client
 from food_recognition.db_models import (
     Base,
+    ChatLinkRequest,
     FoodCharacteristics,
     FoodRegister,
     MealDefaultItem,
     MealReminderLog,
     MealSchedule,
     MealType,
+    SlackInstallation,
+    UserChatLink,
 )
 from food_recognition.utils import app_logger
 
@@ -1011,3 +1016,173 @@ def mark_meal_reminder_resolved(meal_type: str, meal_date: datetime.date, owner_
             MealReminderLog.resolved_at.is_(None),
         ).update({"resolved_at": utcnow()}, synchronize_session=False)
         session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Chat identity linking (Slack today, other providers later — see
+# slack_bot.py's module docstring for the design this implements)
+# ---------------------------------------------------------------------------
+
+# Excludes 0/O/1/I/L — characters easy to misread when typing a code by hand
+# into a chat client.
+_LINK_CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+_LINK_CODE_LENGTH = 8
+_LINK_CODE_TTL_MINUTES = 10
+
+
+def _generate_link_code() -> str:
+    rng = random.SystemRandom()
+    return "".join(rng.choice(_LINK_CODE_CHARS) for _ in range(_LINK_CODE_LENGTH))
+
+
+def create_chat_link_code(owner_user_id: str, provider: str) -> dict:
+    """Start (or restart) linking `owner_user_id`'s account on `provider`.
+
+    Upserts the single pending-request row for this owner (see
+    ChatLinkRequest's unique constraint) — regenerating a code simply
+    replaces the previous one. Deliberately doesn't touch UserChatLink:
+    an already-verified link keeps working until this new code is actually
+    consumed (see verify_chat_link()), so requesting a code you never use
+    can't break an existing link.
+    """
+    now = utcnow()
+    expires_at = now + datetime.timedelta(minutes=_LINK_CODE_TTL_MINUTES)
+    link_code = _generate_link_code()
+    with _SessionFactory() as session:
+        record = session.query(ChatLinkRequest).filter(ChatLinkRequest.owner_user_id == owner_user_id).first()
+        if record is None:
+            record = ChatLinkRequest(owner_user_id=owner_user_id, created_at=now)
+            session.add(record)
+        record.provider = provider
+        record.link_code = link_code
+        record.expires_at = expires_at
+        session.commit()
+    return {"link_code": link_code, "expires_at": expires_at}
+
+
+def get_pending_chat_link_request(owner_user_id: str) -> dict | None:
+    with _SessionFactory() as session:
+        record = session.query(ChatLinkRequest).filter(ChatLinkRequest.owner_user_id == owner_user_id).first()
+        if record is None:
+            return None
+        return {
+            "provider": record.provider,
+            "link_code": record.link_code,
+            "expires_at": record.expires_at,
+            "is_expired": record.expires_at <= utcnow(),
+        }
+
+
+def verify_chat_link(
+    link_code: str, provider: str, provider_chat_id: str, provider_workspace_id: str | None
+) -> str | None:
+    """Consume a pending link code from a chat platform (e.g. the /link
+    <code> Slack command). On success, upserts UserChatLink (creating the
+    person's first link, or overwriting their previous one — "last one
+    wins", the confirmed design) and returns the owner_user_id it belongs
+    to. Returns None if the code doesn't exist, is for a different
+    provider, or has expired (an expired row found here is deleted as a
+    side effect — no separate cleanup job needed for something this cheap).
+    """
+    now = utcnow()
+    with _SessionFactory() as session:
+        request = (
+            session.query(ChatLinkRequest)
+            .filter(ChatLinkRequest.link_code == link_code, ChatLinkRequest.provider == provider)
+            .first()
+        )
+        if request is None:
+            return None
+        if request.expires_at <= now:
+            session.delete(request)
+            session.commit()
+            return None
+
+        owner_user_id = request.owner_user_id
+        link = session.query(UserChatLink).filter(UserChatLink.owner_user_id == owner_user_id).first()
+        if link is None:
+            link = UserChatLink(owner_user_id=owner_user_id, created_at=now)
+            session.add(link)
+        link.provider = provider
+        link.provider_workspace_id = provider_workspace_id
+        link.provider_chat_id = provider_chat_id
+        link.verified_at = now
+        link.updated_at = now
+        session.delete(request)
+        session.commit()
+    return owner_user_id
+
+
+def get_chat_link(owner_user_id: str) -> dict | None:
+    with _SessionFactory() as session:
+        record = session.query(UserChatLink).filter(UserChatLink.owner_user_id == owner_user_id).first()
+        if record is None:
+            return None
+        return {
+            "provider": record.provider,
+            "provider_workspace_id": record.provider_workspace_id,
+            "provider_chat_id": record.provider_chat_id,
+            "verified_at": record.verified_at,
+        }
+
+
+def unlink_chat(owner_user_id: str) -> None:
+    with _SessionFactory() as session:
+        session.query(UserChatLink).filter(UserChatLink.owner_user_id == owner_user_id).delete(
+            synchronize_session=False
+        )
+        session.commit()
+
+
+def get_all_verified_chat_links(provider: str) -> list[dict]:
+    """Every owner with a verified link on `provider` — what the reminder
+    scheduler iterates over instead of running for one fixed owner."""
+    with _SessionFactory() as session:
+        records = session.query(UserChatLink).filter(UserChatLink.provider == provider).all()
+        return [
+            {
+                "owner_user_id": record.owner_user_id,
+                "provider_workspace_id": record.provider_workspace_id,
+                "provider_chat_id": record.provider_chat_id,
+            }
+            for record in records
+        ]
+
+
+def get_owner_for_chat_identity(
+    provider: str, provider_chat_id: str, provider_workspace_id: str | None
+) -> str | None:
+    """Resolve an incoming chat event (e.g. a Slack team_id/user_id pair)
+    back to the Authentik owner_user_id it's linked to, or None if that
+    chat identity hasn't linked an account yet."""
+    with _SessionFactory() as session:
+        query = session.query(UserChatLink.owner_user_id).filter(
+            UserChatLink.provider == provider, UserChatLink.provider_chat_id == provider_chat_id
+        )
+        if provider_workspace_id is not None:
+            query = query.filter(UserChatLink.provider_workspace_id == provider_workspace_id)
+        record = query.first()
+        return record[0] if record else None
+
+
+def upsert_slack_installation(team_id: str, team_name: str, bot_token: str, installed_by: str) -> None:
+    """Save (or update, e.g. after a re-install/token rotation) the
+    bot_token Slack issued for one workspace's installation."""
+    now = utcnow()
+    with _SessionFactory() as session:
+        record = session.query(SlackInstallation).filter(SlackInstallation.team_id == team_id).first()
+        if record is None:
+            record = SlackInstallation(team_id=team_id, installed_at=now)
+            session.add(record)
+        record.team_name = team_name
+        record.bot_token = bot_token
+        record.installed_by = installed_by
+        session.commit()
+
+
+def get_slack_installation(team_id: str) -> dict | None:
+    with _SessionFactory() as session:
+        record = session.query(SlackInstallation).filter(SlackInstallation.team_id == team_id).first()
+        if record is None:
+            return None
+        return {"team_id": record.team_id, "team_name": record.team_name, "bot_token": record.bot_token}

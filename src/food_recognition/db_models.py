@@ -155,3 +155,71 @@ class MealReminderLog(Base):
     resolved_at = Column(DateTime)
     # Same meaning/caveats as FoodRegister.owner_user_id above.
     owner_user_id = Column(String(255), nullable=True)
+
+
+class SlackInstallation(Base):
+    __tablename__ = "slack_installation"
+
+    # One row per Slack workspace that has installed this app's bot via the
+    # OAuth "Add to Slack" flow (see auth_slack.py) — NOT one row per person.
+    # bot_token is obtained dynamically from Slack at install time, unlike
+    # the rest of this app's credentials, which are static values configured
+    # once in Vault — that's why it lives here and not in Vault.
+    uuid = Column(CHAR(36), primary_key=True, default=lambda: str(uuid_lib.uuid4()))
+    team_id = Column(String(32), unique=True, nullable=False)
+    team_name = Column(String(255))
+    bot_token = Column(String(255), nullable=False)
+    # Authentik user (sub) who completed the OAuth install — purely
+    # informational (e.g. "who do I ask if this breaks"), never used for
+    # authorization.
+    installed_by = Column(String(255), nullable=False)
+    installed_at = Column(DateTime, nullable=False)
+
+
+class UserChatLink(Base):
+    __tablename__ = "user_chat_link"
+    __table_args__ = (
+        # A person has at most one active chat link — linking a new one
+        # overwrites the existing row (upsert) rather than adding a second,
+        # per the "last one wins" design decision.
+        UniqueConstraint("owner_user_id", name="idx_user_chat_link_owner"),
+    )
+
+    # Connects an Authentik user to their identity on a chat platform. Only
+    # ever holds a *verified* link — the pending code exchanged to get here
+    # lives separately in ChatLinkRequest, precisely so that generating a
+    # new code (e.g. an old one expired) can never clobber an already-
+    # working link before the new one is actually confirmed.
+    uuid = Column(CHAR(36), primary_key=True, default=lambda: str(uuid_lib.uuid4()))
+    owner_user_id = Column(String(255), nullable=False)
+    provider = Column(String(20), nullable=False)  # 'slack' today; 'telegram' etc. later
+    # Slack's team_id for this link's workspace (looked up in
+    # slack_installation for the bot_token to send with). NULL for providers
+    # with no workspace concept (e.g. Telegram).
+    provider_workspace_id = Column(String(255), nullable=True)
+    # The provider's own user/chat id — where messages actually get sent.
+    provider_chat_id = Column(String(255), nullable=False)
+    verified_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+
+
+class ChatLinkRequest(Base):
+    __tablename__ = "chat_link_request"
+    __table_args__ = (
+        # One pending request per owner — regenerating a code (e.g. the
+        # previous one expired) replaces it rather than accumulating stale
+        # rows.
+        UniqueConstraint("owner_user_id", name="idx_chat_link_request_owner"),
+    )
+
+    # Short-lived, single-use code shown to the user (see main.py:/settings/
+    # chat) and typed into the chat platform (/link <code>) to prove the
+    # Authentik session and the chat identity belong to the same person.
+    # Deleted once consumed (see db.py:verify_chat_link()) or left to expire.
+    uuid = Column(CHAR(36), primary_key=True, default=lambda: str(uuid_lib.uuid4()))
+    owner_user_id = Column(String(255), nullable=False)
+    provider = Column(String(20), nullable=False)
+    link_code = Column(String(12), unique=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, nullable=False)
