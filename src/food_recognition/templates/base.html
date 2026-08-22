@@ -73,6 +73,11 @@
               <i class="bi bi-egg-fried me-1"></i>Meal Defaults
             </a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link {% block nav_chat %}{% endblock %}" href="{{ url_for('chat_settings') }}">
+              <i class="bi bi-slack me-1"></i>Chat
+            </a>
+          </li>
           {% if session.user %}
           <li class="nav-item d-flex align-items-center">
             <span class="nav-link text-body-secondary">
@@ -93,6 +98,16 @@
   <!-- ── End Navigation ────────────────────────────────────────── -->
 
   <main class="py-4 py-md-5">
+    {% if chat_link_missing and request.endpoint != 'chat_settings' %}
+    <div class="container-app">
+      <div class="alert alert-info alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
+        <i class="bi bi-chat-dots fs-5"></i>
+        <div class="flex-grow-1">Get meal reminders in Slack — totally optional.
+          <a href="{{ url_for('chat_settings') }}" class="alert-link">Set it up</a>.</div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    </div>
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
 

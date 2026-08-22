@@ -3,6 +3,7 @@ import datetime
 import pytest
 
 from food_recognition import db, reminder_scheduler
+from food_recognition.db import create_chat_link_code, verify_chat_link
 
 _OWNER_A = "test-owner-a"
 _OWNER_B = "test-owner-b"
@@ -11,12 +12,15 @@ _OWNER_B = "test-owner-b"
 @pytest.fixture
 def sent_reminders(monkeypatch):
     """Stub out slack_bot.send_reminder — tests never hit real Slack — and
-    record every call so escalation timing can be asserted on.
+    record every call so escalation timing can be asserted on. Returns True
+    (a real send), matching what check_and_send_meal_reminders expects
+    before it marks a reminder as notified/nudged.
     """
     calls = []
 
-    def _fake_send_reminder(meal_type, meal_date, escalation=False):
+    def _fake_send_reminder(owner_user_id, meal_type, meal_date, escalation=False):
         calls.append((meal_type, meal_date, escalation))
+        return True
 
     monkeypatch.setattr(reminder_scheduler.slack_bot, "send_reminder", _fake_send_reminder)
     return calls
@@ -143,3 +147,35 @@ def test_reminder_log_is_scoped_per_owner(sent_reminders):
     db.mark_meal_reminder_notified(owner_a_log["uuid"], "dinner")
     refreshed_owner_b_log = db.get_or_create_meal_reminder_log("dinner", local_today, _OWNER_B)
     assert refreshed_owner_b_log["notified_at"] is None
+
+
+def test_run_reminders_for_all_linked_owners_iterates_every_linked_owner(monkeypatch):
+    for owner in (_OWNER_A, _OWNER_B):
+        verify_chat_link(create_chat_link_code(owner, "slack")["link_code"], "slack", f"U-{owner}", "T1")
+
+    calls = []
+    monkeypatch.setattr(
+        reminder_scheduler, "check_and_send_meal_reminders", lambda owner_user_id: calls.append(owner_user_id)
+    )
+
+    reminder_scheduler.run_reminders_for_all_linked_owners()
+
+    assert set(calls) == {_OWNER_A, _OWNER_B}
+
+
+def test_run_reminders_for_all_linked_owners_skips_a_failing_owner_without_stopping(monkeypatch):
+    for owner in (_OWNER_A, _OWNER_B):
+        verify_chat_link(create_chat_link_code(owner, "slack")["link_code"], "slack", f"U-{owner}", "T1")
+
+    calls = []
+
+    def _fake_check(owner_user_id):
+        if owner_user_id == _OWNER_A:
+            raise RuntimeError("boom")
+        calls.append(owner_user_id)
+
+    monkeypatch.setattr(reminder_scheduler, "check_and_send_meal_reminders", _fake_check)
+
+    reminder_scheduler.run_reminders_for_all_linked_owners()  # must not raise
+
+    assert calls == [_OWNER_B]

@@ -2,9 +2,12 @@ import datetime
 import os
 
 import pytz
+from apscheduler.schedulers.background import BackgroundScheduler
 
 from food_recognition import db, slack_bot
 from food_recognition.utils import app_logger
+
+_scheduler: BackgroundScheduler | None = None
 
 
 def _app_timezone() -> datetime.tzinfo:
@@ -58,21 +61,14 @@ def check_and_send_meal_reminders(
     local_today: datetime.date = None,
     is_weekend: bool = None,
 ) -> None:
-    """Scheduled job: for every meal_schedule window that has ended today
-    without a matching food_register row, send (or escalate) a Slack
-    reminder. Would run every REMINDER_CHECK_INTERVAL_MINUTES via
-    start_scheduler() — currently not scheduled at all, see start_scheduler().
+    """For every meal_schedule window of `owner_user_id`'s that has ended
+    today without a matching food_register row, send (or escalate) a Slack
+    reminder. Called once per linked owner by run_reminders_for_all_linked_owners(),
+    which is what start_scheduler() actually schedules.
 
     now_utc/local_today/is_weekend default to the real current time (resolved
     via APP_TIMEZONE) — the parameters exist so tests can drive this with a
     controlled "now" instead of depending on wall-clock time.
-
-    `owner_user_id` has no default — the caller must supply a real one. This
-    used to fall back to a DEFAULT_OWNER_USER_ID constant; that was removed
-    on purpose (see TODO(chat-identity) in slack_bot.py) — there is no
-    logged-in session in a background job, and no other identity source
-    currently exists either, so this function simply can't run for real
-    until a caller has one to pass in.
     """
     if now_utc is None or local_today is None or is_weekend is None:
         tz = _app_timezone()
@@ -95,23 +91,35 @@ def check_and_send_meal_reminders(
 
         log = db.get_or_create_meal_reminder_log(meal_type, local_today, owner_user_id)
         if log["notified_at"] is None:
-            slack_bot.send_reminder(meal_type, local_today, escalation=False)
-            db.mark_meal_reminder_notified(log["uuid"], current_meal_context or meal_type)
-            app_logger.info(f"Sent meal reminder for {meal_type} on {local_today}")
+            if slack_bot.send_reminder(owner_user_id, meal_type, local_today, escalation=False):
+                db.mark_meal_reminder_notified(log["uuid"], current_meal_context or meal_type)
+                app_logger.info(f"Sent meal reminder for {meal_type} on {local_today} to {owner_user_id}")
         elif current_meal_context is not None and log["last_nudge_meal_context"] != current_meal_context:
-            slack_bot.send_reminder(meal_type, local_today, escalation=True)
-            db.mark_meal_reminder_nudged(log["uuid"], current_meal_context)
-            app_logger.info(f"Nudged still-unregistered {meal_type} on {local_today}")
+            if slack_bot.send_reminder(owner_user_id, meal_type, local_today, escalation=True):
+                db.mark_meal_reminder_nudged(log["uuid"], current_meal_context)
+                app_logger.info(f"Nudged still-unregistered {meal_type} on {local_today} for {owner_user_id}")
+
+
+def run_reminders_for_all_linked_owners() -> None:
+    """The actual scheduled job (see start_scheduler()): runs
+    check_and_send_meal_reminders() once per owner with a verified Slack
+    link. One owner's failure is logged and skipped rather than aborting
+    the run for everyone else linked.
+    """
+    for link in db.get_all_verified_chat_links("slack"):
+        owner_user_id = link["owner_user_id"]
+        try:
+            check_and_send_meal_reminders(owner_user_id=owner_user_id)
+        except Exception as e:
+            app_logger.error(f"check_and_send_meal_reminders failed for {owner_user_id}: {e}", exc_info=e)
 
 
 def start_scheduler() -> None:
-    """Disabled for now: see TODO(chat-identity) in slack_bot.py. There is no
-    owner to run check_and_send_meal_reminders() for — it now requires an
-    explicit owner_user_id and there is no per-user chat identity to source
-    one from. Re-enable once that's resolved; this would then likely
-    schedule one job per linked owner rather than a single global one.
-    """
-    app_logger.warning(
-        "Reminder scheduler not started — no owner to check reminders for "
-        "without chat-identity linking (see TODO(chat-identity) in slack_bot.py)."
-    )
+    global _scheduler
+    if _scheduler is not None:
+        return
+    interval_minutes = int(os.getenv("REMINDER_CHECK_INTERVAL_MINUTES", 10))
+    _scheduler = BackgroundScheduler(daemon=True)
+    _scheduler.add_job(run_reminders_for_all_linked_owners, "interval", minutes=interval_minutes)
+    _scheduler.start()
+    app_logger.info(f"Meal reminder scheduler started (every {interval_minutes} min)")
