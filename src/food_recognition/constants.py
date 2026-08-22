@@ -9,7 +9,8 @@ WAIT_TIME_OPEANAI_API: int =  int(os.getenv("WAIT_TIME_OPEANAI_API", 5))
 # owner from. This is a single-household stopgap: Slack today only ever
 # notifies/serves one person (see vault_client.get_slack_secrets()'s
 # "user_id"), so every Slack-driven row is attributed to that same person.
-# Revisit when Slack becomes multi-user aware.
+# Revisit when Slack becomes multi-user aware — see the TODO(chat-identity)
+# block at the top of slack_bot.py for why this isn't just a mapping table.
 #
 # Read from an env var rather than hardcoded here: this repo is public, and
 # the value is a specific person's Authentik user UUID (sub_mode=USER_UUID

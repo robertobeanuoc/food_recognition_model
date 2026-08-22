@@ -12,6 +12,29 @@ from food_recognition.constants import DEFAULT_OWNER_USER_ID
 from food_recognition.food_classification import classify_food_characteristics
 from food_recognition.utils import app_logger
 
+# TODO(chat-identity): this whole module is still single-household — every
+# reminder/DM/command is attributed to DEFAULT_OWNER_USER_ID (constants.py),
+# there is no link between a Slack identity and an Authentik user.
+#
+# The real fix is bigger than "add a mapping table": Slack every event/
+# command already carries an authoritative, unspoofable Slack user_id
+# (Slack's backend fills it in, over a signed/Socket-Mode-authenticated
+# channel — verified this isn't forgeable), so per-user attribution and a
+# one-time /link <code> linking flow (Authentik session -> web-generated
+# code -> entered in Slack) are both sound *within Slack*.
+#
+# But Slack itself is the wrong long-term platform to build that on: it's
+# normally gated behind a business/enterprise workspace, not something any
+# new user can just sign up for. Before wiring per-user Slack accounts,
+# this needs a chat-provider-agnostic design — an abstraction that isn't
+# Slack-specific, that can be provisioned automatically when a user is
+# created (in whichever chat app they actually have), not something built
+# once for Slack and then reworked per provider later.
+#
+# Decided (see plan doc) to design and resolve this — not just for Slack,
+# for chat notifications generally — before rolling per-user isolation out
+# to the other three apps (Step 3): a chat-identity model bolted on late,
+# app by app, would need to be redone four times instead of once.
 _MEAL_TYPE_LABEL: dict[str, str] = {
     "breakfast": "breakfast",
     "lunch": "lunch",
