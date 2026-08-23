@@ -2,42 +2,26 @@ import datetime
 import json
 import os
 import uuid as uuid_lib
+from urllib.parse import urlencode
 
 import pytz
 from slack_bolt import App
+from slack_bolt.adapter.socket_mode import SocketModeHandler
+from slack_bolt.authorization import AuthorizeResult
+from slack_sdk import WebClient
 
 from food_recognition import db, vault_client
 from food_recognition.food_classification import classify_food_characteristics
 from food_recognition.utils import app_logger
 
-# TODO(chat-identity): this whole module is disabled (see start_bot() below)
-# — there is no link between a Slack identity and an Authentik user, so
-# nothing here can safely attribute an action to an owner. There used to be
-# a DEFAULT_OWNER_USER_ID fallback constant; it was removed on purpose —
-# that kind of single-household default only ever made sense for the
-# one-time backfill script (scripts/backfill_owner_user_id.py, which takes
-# the owner as an explicit CLI argument, never imported this), not as an
-# ongoing implicit identity for a live integration. The owner must always
-# come from the application, not a hardcoded/env default.
-#
-# The real fix is bigger than "add a mapping table": every Slack event/
-# command already carries an authoritative, unspoofable Slack user_id
-# (Slack's backend fills it in, over a signed/Socket-Mode-authenticated
-# channel — verified this isn't forgeable), so per-user attribution and a
-# one-time /link <code> linking flow (Authentik session -> web-generated
-# code -> entered in Slack) are both sound *within Slack*.
-#
-# But Slack itself is the wrong long-term platform to build that on: it's
-# normally gated behind a business/enterprise workspace, not something any
-# new user can just sign up for. Before wiring per-user Slack accounts,
-# this needs a chat-provider-agnostic design — an abstraction that isn't
-# Slack-specific, that can be provisioned automatically when a user is
-# created (in whichever chat app they actually have), not something built
-# once for Slack and then reworked per provider later.
-#
-# Decided (see plan doc) to design and resolve this — not just for Slack,
-# for chat notifications generally — before rolling per-user isolation out
-# to the other three apps (Step 3), and before re-enabling this module.
+# Multi-tenant design: this app can be installed into any number of Slack
+# workspaces (see build_install_url()/complete_oauth_install() and
+# db_models.SlackInstallation), and any number of people within each of
+# those workspaces can link their own Authentik account to their own Slack
+# identity (see UserChatLink, /food-link below). There is no single fixed owner
+# or workspace anywhere in this module — every handler resolves "who is
+# this" fresh from the incoming event's team_id + user_id.
+
 _MEAL_TYPE_LABEL: dict[str, str] = {
     "breakfast": "breakfast",
     "lunch": "lunch",
@@ -67,24 +51,29 @@ _OTHER_OPTION: dict = {
 # always leave room for _OTHER_OPTION prepended at the start.
 _MAX_STATIC_SELECT_OPTIONS = 100
 
+# Bot scopes requested when installing into a new workspace. chat:write to
+# DM reminders/confirmations, commands for /register-food and /food-link.
+INSTALL_SCOPES: list[str] = ["chat:write", "commands"]
+
+_NOT_LINKED_MESSAGE = (
+    "You haven't linked this Slack account to the app yet. Open the web app -> "
+    "Settings -> Chat, generate a code, then come back here and run `/food-link <code>`."
+)
+
 _app: App | None = None
 
 
-def _require_owner_user_id() -> str:
-    """There is no source for this yet — see TODO(chat-identity) above.
+def _slack_authorize(team_id: str) -> AuthorizeResult | None:
+    """Bolt calls this per incoming event to get the bot_token to act with.
 
-    Every call site below only runs once a handler is actually registered
-    and invoked by Slack, which never happens today: start_bot() returns
-    before ever calling _get_app()/_register_handlers(), so this is
-    unreachable, not a live bug. It exists only so the module doesn't carry
-    a dangling reference to the DEFAULT_OWNER_USER_ID constant that used to
-    live here — replace this call with a real lookup once Slack identity
-    linking exists.
+    Returning None tells Bolt this team isn't authorized — it drops the
+    event instead of raising, which is exactly right for e.g. a stale event
+    from a workspace that has since uninstalled the bot.
     """
-    raise NotImplementedError(
-        "Slack chat-identity linking isn't implemented yet — see TODO(chat-identity) "
-        "at the top of this file."
-    )
+    installation = db.get_slack_installation(team_id) if team_id else None
+    if installation is None:
+        return None
+    return AuthorizeResult(enterprise_id=None, team_id=team_id, bot_token=installation["bot_token"])
 
 
 def _get_app() -> App:
@@ -94,31 +83,84 @@ def _get_app() -> App:
     """
     global _app
     if _app is None:
-        secrets = vault_client.get_slack_secrets()
-        _app = App(token=secrets["bot_token"])
+        _app = App(authorize=_slack_authorize)
         _register_handlers(_app)
     return _app
 
 
 def start_bot() -> None:
-    """Blocking call — run in a background daemon thread (see main.py).
-
-    Disabled for now: see TODO(chat-identity) at the top of this file.
-    There's no link between a Slack identity and an Authentik user, so
-    nothing here could safely attribute an action to an owner. Re-enable
-    once that's resolved — the previous Socket Mode connection/reconnect-
-    notification implementation is still in git history (see the commit
-    that added this TODO) rather than kept here as dead code.
-    """
-    app_logger.warning(
-        "Slack bot not started — chat-identity linking isn't implemented yet "
-        "(see TODO(chat-identity) at the top of slack_bot.py)."
-    )
-
-
-def send_reminder(meal_type: str, meal_date: datetime.date, escalation: bool = False) -> None:
+    """Blocking call — run in a background daemon thread (see main.py)."""
     secrets = vault_client.get_slack_secrets()
     app = _get_app()
+    handler = SocketModeHandler(app, secrets["app_token"])
+    app_logger.info("Starting Slack bot (Socket Mode)")
+    handler.start()
+
+
+def build_install_url(state: str, redirect_uri: str) -> str:
+    """The "Add to Slack" URL for /slack/install (main.py) to redirect to.
+    `state` is an unpredictable, per-session value the caller generates and
+    later checks matches on /slack/oauth_redirect — standard OAuth CSRF
+    protection, unrelated to the /food-link linking code below.
+
+    `redirect_uri` is passed explicitly (main.py builds it from the live
+    request via url_for(..., _external=True)) and echoed back unchanged in
+    complete_oauth_install()'s token exchange — Slack requires the two to
+    match whenever redirect_uri is present at all. Passing it here rather
+    than omitting it and relying on "there's only one Redirect URL
+    configured, Slack will infer it" keeps this working even if a second
+    redirect URL (e.g. a future public domain) gets added in the Slack app
+    config later.
+    """
+    secrets = vault_client.get_slack_secrets()
+    params = {
+        "client_id": secrets["client_id"],
+        "scope": ",".join(INSTALL_SCOPES),
+        "state": state,
+        "redirect_uri": redirect_uri,
+    }
+    return f"https://slack.com/oauth/v2/authorize?{urlencode(params)}"
+
+
+def complete_oauth_install(code: str, redirect_uri: str, installed_by: str) -> dict:
+    """Exchange an OAuth `code` (from /slack/oauth_redirect) for a bot_token
+    and persist the installation. Returns {"team_id", "team_name"}."""
+    secrets = vault_client.get_slack_secrets()
+    client = WebClient()
+    response = client.oauth_v2_access(
+        client_id=secrets["client_id"],
+        client_secret=secrets["client_secret"],
+        code=code,
+        redirect_uri=redirect_uri,
+    )
+    team_id = response["team"]["id"]
+    team_name = response["team"].get("name") or team_id
+    db.upsert_slack_installation(
+        team_id=team_id, team_name=team_name, bot_token=response["access_token"], installed_by=installed_by
+    )
+    app_logger.info(f"Slack app installed into workspace '{team_name}' ({team_id}) by {installed_by}")
+    return {"team_id": team_id, "team_name": team_name}
+
+
+def send_reminder(owner_user_id: str, meal_type: str, meal_date: datetime.date, escalation: bool = False) -> bool:
+    """Send (or escalate) a reminder DM to whichever Slack account
+    `owner_user_id` has linked. Returns False (without raising) if they have
+    no verified Slack link, or their workspace's installation is gone —
+    callers (reminder_scheduler.py) treat that as "nothing to do", not an
+    error worth crashing the whole run over.
+    """
+    link = db.get_chat_link(owner_user_id)
+    if link is None or link["provider"] != "slack":
+        return False
+    installation = db.get_slack_installation(link["provider_workspace_id"])
+    if installation is None:
+        app_logger.warning(
+            f"owner {owner_user_id} is linked to Slack workspace {link['provider_workspace_id']}, "
+            "but that installation no longer exists — skipping reminder"
+        )
+        return False
+
+    client = WebClient(token=installation["bot_token"])
     meal_label = _MEAL_TYPE_LABEL.get(meal_type, meal_type)
     text = (
         f"You still haven't logged {meal_label} today ({meal_date.isoformat()})."
@@ -126,8 +168,8 @@ def send_reminder(meal_type: str, meal_date: datetime.date, escalation: bool = F
         else f"You haven't logged {meal_label} today ({meal_date.isoformat()})."
     )
     value = json.dumps({"meal_type": meal_type, "meal_date": meal_date.isoformat()})
-    app.client.chat_postMessage(
-        channel=secrets["user_id"],
+    client.chat_postMessage(
+        channel=link["provider_chat_id"],
         text=text,
         blocks=[
             {"type": "section", "text": {"type": "mrkdwn", "text": text}},
@@ -144,6 +186,7 @@ def send_reminder(meal_type: str, meal_date: datetime.date, escalation: bool = F
             },
         ],
     )
+    return True
 
 
 def _local_today() -> datetime.date:
@@ -157,6 +200,21 @@ def _local_today() -> datetime.date:
     except pytz.UnknownTimeZoneError:
         tz = pytz.utc
     return datetime.datetime.now(tz=pytz.utc).astimezone(tz).date()
+
+
+def _owner_from_command_body(body: dict) -> str | None:
+    """Resolve the Authentik owner for a slash-command payload (flat
+    team_id/user_id keys — see Slack's slash command payload shape, distinct
+    from the nested team.id/user.id shape interaction payloads use below)."""
+    return db.get_owner_for_chat_identity("slack", body.get("user_id"), body.get("team_id"))
+
+
+def _owner_from_interaction_body(body: dict) -> str | None:
+    """Same as _owner_from_command_body, for block_actions/view_submission
+    payloads, which nest team/user as objects instead of flat ids."""
+    return db.get_owner_for_chat_identity(
+        "slack", body.get("user", {}).get("id"), body.get("team", {}).get("id")
+    )
 
 
 def _build_meal_type_picker_view() -> dict:
@@ -298,11 +356,11 @@ def _food_item_blocks(
     return blocks
 
 
-def _build_modal_view(meal_type: str, meal_date: datetime.date, items: list[dict]) -> dict:
+def _build_modal_view(meal_type: str, meal_date: datetime.date, items: list[dict], owner_user_id: str) -> dict:
     if not items:
         items = [{"food_type": None, "weight_grams": None}]
 
-    catalog = db.get_food_types_ranked_by_usage(meal_type, _require_owner_user_id())
+    catalog = db.get_food_types_ranked_by_usage(meal_type, owner_user_id)
 
     blocks: list[dict] = [
         {
@@ -389,8 +447,26 @@ def _register_handlers(app: App) -> None:
         app_logger.error(f"Slack Bolt error: {error}", exc_info=error)
         app_logger.error(f"Slack Bolt error body: {body}")
 
+    @app.command("/food-link")
+    def handle_link_command(ack, body):
+        code = (body.get("text") or "").strip().upper()
+        if not code:
+            ack(text="Usage: `/food-link <code>` — generate a code from the web app (Settings -> Chat) first.")
+            return
+        owner_user_id = db.verify_chat_link(
+            code, "slack", provider_chat_id=body.get("user_id"), provider_workspace_id=body.get("team_id")
+        )
+        if owner_user_id is None:
+            ack(text="That code is invalid or has expired. Generate a new one from Settings -> Chat and try again.")
+            return
+        ack(text="✅ Account linked. Your meal reminders will be sent here from now on.")
+
     @app.command("/register-food")
     def handle_register_food_command(ack, body, client):
+        owner_user_id = _owner_from_command_body(body)
+        if owner_user_id is None:
+            ack(text=_NOT_LINKED_MESSAGE)
+            return
         # Ignores any typed command text — always opens the meal-type picker
         # rather than trying to parse it, so there's no ambiguity around
         # accepted values/typos; the picker is sourced straight from the
@@ -402,30 +478,41 @@ def _register_handlers(app: App) -> None:
         )
 
     @app.view("register_food_meal_type_modal")
-    def handle_register_food_meal_type_submission(ack, view):
+    def handle_register_food_meal_type_submission(ack, body, view):
+        owner_user_id = _owner_from_interaction_body(body)
+        if owner_user_id is None:
+            ack(response_action="errors", errors={"meal_type_block": "Link your account first (see /register-food)."})
+            return
         meal_type = view["state"]["values"]["meal_type_block"]["meal_type_select"]["selected_option"]["value"]
         meal_date = _local_today()
-        items = db.get_next_default_preset(meal_type, meal_date, _require_owner_user_id())
+        items = db.get_next_default_preset(meal_type, meal_date, owner_user_id)
         # response_action "push" opens a new modal on top of this one without
         # needing a fresh trigger_id — same food-item modal the reminder DM's
         # "Log now" button opens.
-        ack(response_action="push", view=_build_modal_view(meal_type, meal_date, items))
+        ack(response_action="push", view=_build_modal_view(meal_type, meal_date, items, owner_user_id))
 
     @app.action("open_meal_form")
     def handle_open_meal_form(ack, body, client):
         ack()
+        owner_user_id = _owner_from_interaction_body(body)
+        if owner_user_id is None:
+            client.chat_postMessage(channel=body["user"]["id"], text=_NOT_LINKED_MESSAGE)
+            return
         payload = json.loads(body["actions"][0]["value"])
         meal_type = payload["meal_type"]
         meal_date = datetime.date.fromisoformat(payload["meal_date"])
-        items = db.get_next_default_preset(meal_type, meal_date, _require_owner_user_id())
+        items = db.get_next_default_preset(meal_type, meal_date, owner_user_id)
         client.views_open(
             trigger_id=body["trigger_id"],
-            view=_build_modal_view(meal_type, meal_date, items),
+            view=_build_modal_view(meal_type, meal_date, items, owner_user_id),
         )
 
     @app.action("add_food_item")
     def handle_add_food_item(ack, body, client):
         ack()
+        owner_user_id = _owner_from_interaction_body(body)
+        if owner_user_id is None:
+            return  # unreachable in practice: got here via an already-open, owner-gated modal
         view = body["view"]
         metadata = json.loads(view["private_metadata"])
         meal_type = metadata["meal_type"]
@@ -434,7 +521,7 @@ def _register_handlers(app: App) -> None:
         items = _parse_state_items(view["state"]["values"], metadata["item_count"])
         items.append({"food_type": None, "weight_grams": None})
 
-        client.views_update(view_id=view["id"], view=_build_modal_view(meal_type, meal_date, items))
+        client.views_update(view_id=view["id"], view=_build_modal_view(meal_type, meal_date, items, owner_user_id))
 
     @app.action("food_type_select")
     def handle_food_type_select(ack, body, client):
@@ -442,17 +529,23 @@ def _register_handlers(app: App) -> None:
         # food)" needs to reveal the free-text block below it, and picking
         # anything else needs to hide it again if it was showing.
         ack()
+        owner_user_id = _owner_from_interaction_body(body)
+        if owner_user_id is None:
+            return
         view = body["view"]
         metadata = json.loads(view["private_metadata"])
         meal_type = metadata["meal_type"]
         meal_date = datetime.date.fromisoformat(metadata["meal_date"])
 
         items = _parse_state_items(view["state"]["values"], metadata["item_count"])
-        client.views_update(view_id=view["id"], view=_build_modal_view(meal_type, meal_date, items))
+        client.views_update(view_id=view["id"], view=_build_modal_view(meal_type, meal_date, items, owner_user_id))
 
     @app.action("remove_food_item")
     def handle_remove_food_item(ack, body, client):
         ack()
+        owner_user_id = _owner_from_interaction_body(body)
+        if owner_user_id is None:
+            return
         view = body["view"]
         metadata = json.loads(view["private_metadata"])
         meal_type = metadata["meal_type"]
@@ -472,11 +565,18 @@ def _register_handlers(app: App) -> None:
                 f"on view {view['id']} — nothing removed"
             )
 
-        response = client.views_update(view_id=view["id"], view=_build_modal_view(meal_type, meal_date, items))
+        response = client.views_update(
+            view_id=view["id"], view=_build_modal_view(meal_type, meal_date, items, owner_user_id)
+        )
         app_logger.info(f"remove_food_item: views_update ok={response.get('ok')} view_id={view['id']}")
 
     @app.view("meal_log_modal")
-    def handle_meal_log_submission(ack, view, client):
+    def handle_meal_log_submission(ack, body, view, client):
+        owner_user_id = _owner_from_interaction_body(body)
+        if owner_user_id is None:
+            ack(response_action="errors", errors={"food_0": "Link your account first (see /register-food)."})
+            return
+
         metadata = json.loads(view["private_metadata"])
         meal_type = metadata["meal_type"]
         meal_date = datetime.date.fromisoformat(metadata["meal_date"])
@@ -498,7 +598,7 @@ def _register_handlers(app: App) -> None:
         # have happened) still lands in its own meal_schedule window instead
         # of whatever window the actual submission time falls into.
         is_weekend = meal_date.weekday() >= 5
-        start_time = db.get_meal_schedule_start_time(meal_type, is_weekend, _require_owner_user_id())
+        start_time = db.get_meal_schedule_start_time(meal_type, is_weekend, owner_user_id)
         created_at = datetime.datetime.combine(meal_date, start_time or db.utcnow().time())
         for item in parsed_items:
             food_type = item["resolved_food_type"]
@@ -540,18 +640,17 @@ def _register_handlers(app: App) -> None:
                 food_type=food_type,
                 glycemic_index=glycemic_index,
                 weight_grams=weight_grams,
-                owner_user_id=_require_owner_user_id(),
+                owner_user_id=owner_user_id,
                 meal_type=meal_type,
                 carbohydrate_percentage=carbohydrate_percentage,
                 carbohydrate_weight_grams=carbohydrate_weight_grams,
                 absorption_type=absorption_type,
                 created_at=created_at,
             )
-        db.mark_meal_reminder_resolved(meal_type, meal_date, _require_owner_user_id())
+        db.mark_meal_reminder_resolved(meal_type, meal_date, owner_user_id)
 
-        secrets = vault_client.get_slack_secrets()
         meal_label = _MEAL_TYPE_LABEL.get(meal_type, meal_type)
         client.chat_postMessage(
-            channel=secrets["user_id"],
+            channel=body["user"]["id"],
             text=f"✅ Logged {meal_label} for {meal_date.isoformat()} ({len(parsed_items)} item(s)).",
         )

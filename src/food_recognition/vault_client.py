@@ -5,7 +5,13 @@ import hvac
 from food_recognition.utils import app_logger
 
 _DB_SECRET_KEYS = ("host", "port", "user", "password", "name")
-_SLACK_SECRET_KEYS = ("bot_token", "app_token", "user_id")
+# app_token: opens the single Socket Mode connection shared by every
+# installed workspace. client_id/client_secret: the app's own OAuth
+# credentials, used once per workspace to complete "Add to Slack" (see
+# slack_bot.py). Neither is per-workspace or per-user — those live in
+# slack_installation (db_models.py), not here, since they're obtained
+# dynamically from Slack rather than configured once by us.
+_SLACK_SECRET_KEYS = ("app_token", "client_id", "client_secret")
 _OPENAI_SECRET_KEYS = ("api_key",)
 _OIDC_SECRET_KEYS = ("client_id", "client_secret", "issuer")
 
@@ -127,10 +133,11 @@ def get_oidc_secrets() -> dict:
 
 
 def get_slack_secrets() -> dict:
-    """Slack credentials: bot_token/app_token/user_id, read from Vault KV v2
-    at VAULT_SLACK_SECRET_PATH. Unlike DB credentials there is no env-var
-    fallback — Slack integration is opt-in and only makes sense with Vault
-    configured.
+    """Slack app credentials: app_token/client_id/client_secret, read from
+    Vault KV v2 at VAULT_SLACK_SECRET_PATH. Unlike DB credentials there is no
+    env-var fallback — Slack integration is opt-in and only makes sense with
+    Vault configured. Per-workspace bot_token values are NOT here — see
+    db.py:get_slack_installation().
     """
     global _slack_secrets_cache
     if _slack_secrets_cache is not None:

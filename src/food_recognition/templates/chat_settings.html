@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}NutriScan – Chat{% endblock %}
+{% block nav_chat %}active{% endblock %}
+
+{% block content %}
+<div class="container-app">
+
+  <!-- ── Page heading ─────────────────────────────────────────── -->
+  <div class="page-heading d-flex align-items-start justify-content-between flex-wrap gap-2 mb-4">
+    <div>
+      <h1>Chat</h1>
+      <p class="text-muted">Get meal reminders and log food straight from Slack — completely optional.</p>
+    </div>
+  </div>
+
+  <!-- ── Linked state ─────────────────────────────────────────── -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <span class="section-title"><i class="bi bi-slack me-2 text-muted"></i>Slack</span>
+    </div>
+    <div class="card-body">
+
+      {% if link %}
+        <p class="mb-2">
+          <span class="gi-badge gi-low"><i class="bi bi-check-circle me-1"></i>Linked</span>
+          {% if workspace_name %}to <strong>{{ workspace_name }}</strong>{% endif %}
+        </p>
+        <p class="text-muted small mb-3">Reminders and <code>/register-food</code> use this account. Linking a
+          different chat later replaces this one.</p>
+        <button id="unlink-btn" class="btn btn-outline-danger btn-sm" onclick="unlinkChat()">
+          <i class="bi bi-x-circle me-1"></i>Unlink
+        </button>
+      {% else %}
+        <p class="text-muted mb-3">Not linked yet. Generate a code below, then send it to the bot in Slack.</p>
+
+        <div id="link-code-panel" class="{{ 'd-none' if not pending or pending.is_expired }}">
+          <div class="alert alert-info d-flex align-items-center gap-2 mb-3" role="alert">
+            <i class="bi bi-key fs-5"></i>
+            <div>
+              In Slack, run: <code id="link-code-text">/food-link {{ pending.link_code if pending and not pending.is_expired }}</code>
+              <div class="small text-muted">Expires 10 minutes after it's generated.</div>
+            </div>
+          </div>
+        </div>
+
+        <button id="generate-code-btn" class="btn btn-primary btn-sm" onclick="generateLinkCode()">
+          <i class="bi bi-arrow-repeat me-1"></i>Generate a code
+        </button>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <!-- ── Install into a new workspace ─────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="section-title"><i class="bi bi-plus-square me-2 text-muted"></i>Bot not in your Slack yet?</span>
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">Adds the bot to a Slack workspace so its members can link their accounts.
+        You only need this once per workspace.</p>
+      <a href="{{ url_for('slack_install') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-slack me-1"></i>Add to Slack
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function generateLinkCode() {
+    const btn = document.getElementById('generate-code-btn');
+    btn.disabled = true;
+    try {
+      const response = await fetch("{{ url_for('api_create_chat_link_code') }}", { method: 'POST' });
+      if (!response.ok) throw new Error('request failed');
+      const data = await response.json();
+      document.getElementById('link-code-text').textContent = '/food-link ' + data.link_code;
+      document.getElementById('link-code-panel').classList.remove('d-none');
+    } catch (e) {
+      alert("Couldn't generate a code — please try again.");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function unlinkChat() {
+    if (!confirm('Unlink this chat account? You can link again anytime.')) return;
+    const response = await fetch("{{ url_for('api_unlink_chat') }}", { method: 'POST' });
+    if (response.ok) {
+      window.location.reload();
+    } else {
+      alert("Couldn't unlink — please try again.");
+    }
+  }
+</script>
+{% endblock %}

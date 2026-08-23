@@ -1,8 +1,9 @@
 
 import datetime
+import secrets
 import shutil
 import threading
-from flask import Flask, session ,render_template, request, redirect, url_for, Blueprint
+from flask import Flask, g, session ,render_template, request, redirect, url_for, Blueprint
 import cv2
 import numpy as np
 import os
@@ -10,7 +11,7 @@ import pytz
 from food_recognition.auth import auth_bp, init_oauth, login_required, unauthenticated_response
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
-from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register, delete_food_register, sync_schema, get_meal_schedule, update_meal_schedule, get_meal_types, utcnow, get_food_types, upsert_food_characteristics, get_meal_default_items, add_meal_default_item, update_meal_default_item, delete_meal_default_item
+from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register, delete_food_register, sync_schema, get_meal_schedule, update_meal_schedule, get_meal_types, utcnow, get_food_types, upsert_food_characteristics, get_meal_default_items, add_meal_default_item, update_meal_default_item, delete_meal_default_item, get_chat_link, get_pending_chat_link_request, create_chat_link_code, unlink_chat, get_slack_installation
 from food_recognition.similar_food import add_similar_food_info_to_food
 from food_recognition import reminder_scheduler, slack_bot
 import json
@@ -71,6 +72,19 @@ if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
     init_oauth(app)
     reminder_scheduler.start_scheduler()
     threading.Thread(target=_run_slack_bot, daemon=True, name="slack-bot").start()
+
+
+@app.context_processor
+def inject_chat_link_status():
+    """Makes `chat_link_missing` available to every template (see base.html's
+    dismissible banner) without every route needing to compute it itself.
+    Chat linking is opt-in — this only ever prompts, never blocks anything.
+    """
+    if 'user' not in session:
+        return {}
+    if not hasattr(g, 'chat_link_missing'):
+        g.chat_link_missing = get_chat_link(session['user']['sub']) is None
+    return {'chat_link_missing': g.chat_link_missing}
 
 
 def get_request_timezone() -> datetime.tzinfo:
@@ -437,6 +451,67 @@ def api_delete_meal_default_item(uuid: str):
     app_logger.info(f"Deleting meal_default_item {uuid} ..")
     delete_meal_default_item(uuid=uuid, owner_user_id=session['user']['sub'])
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Chat linking (Slack today — see slack_bot.py's module docstring for the
+# multi-workspace, multi-user design this implements)
+# ---------------------------------------------------------------------------
+
+@app.route('/settings/chat', methods=['GET'])
+@login_required
+def chat_settings():
+    owner_user_id: str = session['user']['sub']
+    link: dict | None = get_chat_link(owner_user_id)
+    workspace_name: str | None = None
+    if link and link['provider_workspace_id']:
+        installation = get_slack_installation(link['provider_workspace_id'])
+        workspace_name = installation['team_name'] if installation else None
+    pending: dict | None = get_pending_chat_link_request(owner_user_id)
+    return render_template('chat_settings.html', link=link, workspace_name=workspace_name, pending=pending)
+
+
+@app.route('/settings/chat/link-code', methods=['POST'])
+@login_required(api=True)
+def api_create_chat_link_code():
+    result: dict = create_chat_link_code(owner_user_id=session['user']['sub'], provider='slack')
+    return {"status": "ok", "link_code": result["link_code"], "expires_at": result["expires_at"].isoformat()}
+
+
+@app.route('/settings/chat/unlink', methods=['POST'])
+@login_required(api=True)
+def api_unlink_chat():
+    unlink_chat(owner_user_id=session['user']['sub'])
+    return {"status": "ok"}
+
+
+@app.route('/slack/install', methods=['GET'])
+@login_required
+def slack_install():
+    # Standard OAuth CSRF protection: an unpredictable value round-tripped
+    # through Slack and checked back on the way in at /slack/oauth_redirect —
+    # unrelated to the /food-link <code> a person types into Slack afterwards.
+    state: str = secrets.token_urlsafe(24)
+    session['slack_oauth_state'] = state
+    # _external=True derives the scheme+host from this actual request, same
+    # as auth.py's OIDC redirect_uri — must exactly match the Redirect URL
+    # registered in the Slack app's OAuth & Permissions settings.
+    redirect_uri: str = url_for('slack_oauth_redirect', _external=True)
+    return redirect(slack_bot.build_install_url(state, redirect_uri))
+
+
+@app.route('/slack/oauth_redirect', methods=['GET'])
+@login_required
+def slack_oauth_redirect():
+    expected_state: str | None = session.pop('slack_oauth_state', None)
+    state: str | None = request.args.get('state')
+    code: str | None = request.args.get('code')
+    if not code or not state or state != expected_state:
+        app_logger.warning("Slack OAuth redirect rejected: missing code or state mismatch")
+        return redirect(url_for('chat_settings'))
+    redirect_uri: str = url_for('slack_oauth_redirect', _external=True)
+    slack_bot.complete_oauth_install(code=code, redirect_uri=redirect_uri, installed_by=session['user']['sub'])
+    return redirect(url_for('chat_settings'))
 
 
 if __name__ == '__main__':
