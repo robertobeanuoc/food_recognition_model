@@ -68,4 +68,8 @@ jobs:
 
       - name: Run tests
         working-directory: src
-        run: python -m pytest test/ -v
+        # test_get_food_types (test_similar.py) makes a real OpenAI API call
+        # (see CLAUDE.md "Tests" — it needs a valid OPENAI_API_KEY) and isn't
+        # suited to run automatically on every push/PR; deselected here, not
+        # deleted, so it's still runnable manually with a real key.
+        run: python -m pytest test/ -v --deselect test/test_similar.py::test_get_food_types

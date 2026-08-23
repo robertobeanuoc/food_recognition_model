@@ -8,12 +8,13 @@ def test_get_food_types():
     find_similar_food(food_type="Fried Chicken")
 
 
-def test_get_food_register():
-    if len(sys.argv) < 2:
-        print("Please provide the output file path")
-        sys.exit(1)
-
-    with open(sys.argv[1], "w") as f:
+def _dump_food_register_similarity_report(output_path: str) -> None:
+    """Manual one-off report, not an automated test — hits the real DB/OpenAI
+    and writes a CSV. Run directly: `python test_similar.py <output_file>`.
+    Named with a leading underscore (and gated behind __main__ below) so
+    pytest doesn't try to collect/run it as a test.
+    """
+    with open(output_path, "w") as f:
         f.write("file_uid, food, glycemic_index, similar, similar_glycemic_index, glycemic_index_difference\n")
         food_registers: dict = get_food_registers(start_date=datetime.date(2024, 7, 4))
         
@@ -31,9 +32,11 @@ def test_get_food_register():
 
             output_string: str = f"{file_uid}, {original_food}, {glycemic_index}, {similar_food}, {original_glycemic_index}, {glycemic_index_difference}\n"
             f.write(output_string)
-    
-
-test_get_food_register()
 
 
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Please provide the output file path")
+        sys.exit(1)
+    _dump_food_register_similarity_report(sys.argv[1])
 
