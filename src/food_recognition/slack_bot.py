@@ -97,28 +97,41 @@ def start_bot() -> None:
     handler.start()
 
 
-def build_install_url(state: str) -> str:
+def build_install_url(state: str, redirect_uri: str) -> str:
     """The "Add to Slack" URL for /slack/install (main.py) to redirect to.
     `state` is an unpredictable, per-session value the caller generates and
     later checks matches on /slack/oauth_redirect — standard OAuth CSRF
     protection, unrelated to the /link linking code below.
+
+    `redirect_uri` is passed explicitly (main.py builds it from the live
+    request via url_for(..., _external=True)) and echoed back unchanged in
+    complete_oauth_install()'s token exchange — Slack requires the two to
+    match whenever redirect_uri is present at all. Passing it here rather
+    than omitting it and relying on "there's only one Redirect URL
+    configured, Slack will infer it" keeps this working even if a second
+    redirect URL (e.g. a future public domain) gets added in the Slack app
+    config later.
     """
     secrets = vault_client.get_slack_secrets()
     params = {
         "client_id": secrets["client_id"],
         "scope": ",".join(INSTALL_SCOPES),
         "state": state,
+        "redirect_uri": redirect_uri,
     }
     return f"https://slack.com/oauth/v2/authorize?{urlencode(params)}"
 
 
-def complete_oauth_install(code: str, installed_by: str) -> dict:
+def complete_oauth_install(code: str, redirect_uri: str, installed_by: str) -> dict:
     """Exchange an OAuth `code` (from /slack/oauth_redirect) for a bot_token
     and persist the installation. Returns {"team_id", "team_name"}."""
     secrets = vault_client.get_slack_secrets()
     client = WebClient()
     response = client.oauth_v2_access(
-        client_id=secrets["client_id"], client_secret=secrets["client_secret"], code=code
+        client_id=secrets["client_id"],
+        client_secret=secrets["client_secret"],
+        code=code,
+        redirect_uri=redirect_uri,
     )
     team_id = response["team"]["id"]
     team_name = response["team"].get("name") or team_id

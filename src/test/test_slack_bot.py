@@ -64,12 +64,13 @@ def test_owner_from_interaction_body_resolves_nested_team_and_user_ids():
     assert slack_bot._owner_from_interaction_body({"team": {"id": "T2"}, "user": {"id": "U1"}}) is None
 
 
-def test_build_install_url_carries_state_and_scopes():
-    url = slack_bot.build_install_url("random-state-123")
+def test_build_install_url_carries_state_scopes_and_redirect_uri():
+    url = slack_bot.build_install_url("random-state-123", "https://example.test/slack/oauth_redirect")
 
     assert url.startswith("https://slack.com/oauth/v2/authorize?")
     assert "state=random-state-123" in url
     assert "chat%3Awrite" in url or "chat:write" in url
+    assert "oauth_redirect" in url
 
 
 def test_slack_authorize_returns_none_for_an_uninstalled_team():

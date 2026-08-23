@@ -493,7 +493,11 @@ def slack_install():
     # unrelated to the /link <code> a person types into Slack afterwards.
     state: str = secrets.token_urlsafe(24)
     session['slack_oauth_state'] = state
-    return redirect(slack_bot.build_install_url(state))
+    # _external=True derives the scheme+host from this actual request, same
+    # as auth.py's OIDC redirect_uri — must exactly match the Redirect URL
+    # registered in the Slack app's OAuth & Permissions settings.
+    redirect_uri: str = url_for('slack_oauth_redirect', _external=True)
+    return redirect(slack_bot.build_install_url(state, redirect_uri))
 
 
 @app.route('/slack/oauth_redirect', methods=['GET'])
@@ -505,7 +509,8 @@ def slack_oauth_redirect():
     if not code or not state or state != expected_state:
         app_logger.warning("Slack OAuth redirect rejected: missing code or state mismatch")
         return redirect(url_for('chat_settings'))
-    slack_bot.complete_oauth_install(code=code, installed_by=session['user']['sub'])
+    redirect_uri: str = url_for('slack_oauth_redirect', _external=True)
+    slack_bot.complete_oauth_install(code=code, redirect_uri=redirect_uri, installed_by=session['user']['sub'])
     return redirect(url_for('chat_settings'))
 
 
