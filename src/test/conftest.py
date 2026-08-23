@@ -4,6 +4,26 @@ from sqlalchemy.orm import sessionmaker
 import food_recognition.db as db
 from food_recognition import vault_client
 
+# Shared with test_token_auth.py, which mints test JWTs carrying these exact
+# iss/azp values so they pass _verify_bearer_token()'s checks against them.
+TEST_OIDC_ISSUER = "http://authentik.test/application/o/food-recognition-test"
+TEST_OIDC_CLIENT_ID = "test-oidc-client-id"
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _stub_oidc_secrets():
+    """OIDC has an env-var fallback (unlike Slack), but pre-seeding the
+    cache directly is simpler and keeps every test hermetic regardless of
+    the environment's OIDC_* vars. Only _verify_bearer_token() (auth.py)
+    reads this in tests — init_oauth()/the real login flow never runs
+    outside a live app (see main.py's WERKZEUG_RUN_MAIN guard).
+    """
+    vault_client._oidc_secrets_cache = {
+        "client_id": TEST_OIDC_CLIENT_ID,
+        "client_secret": "test-oidc-client-secret",
+        "issuer": TEST_OIDC_ISSUER,
+    }
+
 
 @pytest.fixture(autouse=True, scope="session")
 def _stub_slack_secrets():
