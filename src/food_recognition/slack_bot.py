@@ -18,7 +18,7 @@ from food_recognition.utils import app_logger
 # workspaces (see build_install_url()/complete_oauth_install() and
 # db_models.SlackInstallation), and any number of people within each of
 # those workspaces can link their own Authentik account to their own Slack
-# identity (see UserChatLink, /link below). There is no single fixed owner
+# identity (see UserChatLink, /food-link below). There is no single fixed owner
 # or workspace anywhere in this module — every handler resolves "who is
 # this" fresh from the incoming event's team_id + user_id.
 
@@ -52,12 +52,12 @@ _OTHER_OPTION: dict = {
 _MAX_STATIC_SELECT_OPTIONS = 100
 
 # Bot scopes requested when installing into a new workspace. chat:write to
-# DM reminders/confirmations, commands for /register-food and /link.
+# DM reminders/confirmations, commands for /register-food and /food-link.
 INSTALL_SCOPES: list[str] = ["chat:write", "commands"]
 
 _NOT_LINKED_MESSAGE = (
     "You haven't linked this Slack account to the app yet. Open the web app -> "
-    "Settings -> Chat, generate a code, then come back here and run `/link <code>`."
+    "Settings -> Chat, generate a code, then come back here and run `/food-link <code>`."
 )
 
 _app: App | None = None
@@ -101,7 +101,7 @@ def build_install_url(state: str, redirect_uri: str) -> str:
     """The "Add to Slack" URL for /slack/install (main.py) to redirect to.
     `state` is an unpredictable, per-session value the caller generates and
     later checks matches on /slack/oauth_redirect — standard OAuth CSRF
-    protection, unrelated to the /link linking code below.
+    protection, unrelated to the /food-link linking code below.
 
     `redirect_uri` is passed explicitly (main.py builds it from the live
     request via url_for(..., _external=True)) and echoed back unchanged in
@@ -447,11 +447,11 @@ def _register_handlers(app: App) -> None:
         app_logger.error(f"Slack Bolt error: {error}", exc_info=error)
         app_logger.error(f"Slack Bolt error body: {body}")
 
-    @app.command("/link")
+    @app.command("/food-link")
     def handle_link_command(ack, body):
         code = (body.get("text") or "").strip().upper()
         if not code:
-            ack(text="Usage: `/link <code>` — generate a code from the web app (Settings -> Chat) first.")
+            ack(text="Usage: `/food-link <code>` — generate a code from the web app (Settings -> Chat) first.")
             return
         owner_user_id = db.verify_chat_link(
             code, "slack", provider_chat_id=body.get("user_id"), provider_workspace_id=body.get("team_id")

@@ -1076,7 +1076,7 @@ def get_pending_chat_link_request(owner_user_id: str) -> dict | None:
 def verify_chat_link(
     link_code: str, provider: str, provider_chat_id: str, provider_workspace_id: str | None
 ) -> str | None:
-    """Consume a pending link code from a chat platform (e.g. the /link
+    """Consume a pending link code from a chat platform (e.g. the /food-link
     <code> Slack command). On success, upserts UserChatLink (creating the
     person's first link, or overwriting their previous one — "last one
     wins", the confirmed design) and returns the owner_user_id it belongs

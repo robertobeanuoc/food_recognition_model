@@ -214,7 +214,7 @@ class ChatLinkRequest(Base):
     )
 
     # Short-lived, single-use code shown to the user (see main.py:/settings/
-    # chat) and typed into the chat platform (/link <code>) to prove the
+    # chat) and typed into the chat platform (/food-link <code>) to prove the
     # Authentik session and the chat identity belong to the same person.
     # Deleted once consumed (see db.py:verify_chat_link()) or left to expire.
     uuid = Column(CHAR(36), primary_key=True, default=lambda: str(uuid_lib.uuid4()))

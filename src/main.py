@@ -490,7 +490,7 @@ def api_unlink_chat():
 def slack_install():
     # Standard OAuth CSRF protection: an unpredictable value round-tripped
     # through Slack and checked back on the way in at /slack/oauth_redirect —
-    # unrelated to the /link <code> a person types into Slack afterwards.
+    # unrelated to the /food-link <code> a person types into Slack afterwards.
     state: str = secrets.token_urlsafe(24)
     session['slack_oauth_state'] = state
     # _external=True derives the scheme+host from this actual request, same
