@@ -2,6 +2,21 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 
 import food_recognition.db as db
+from food_recognition import vault_client
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _stub_slack_secrets():
+    """Slack credentials have no env-var fallback (see vault_client.py) —
+    only build_install_url()/complete_oauth_install() need them, and neither
+    talks to Slack for real in tests. Pre-seeding the module cache lets
+    those tests run without a real Vault, in CI or locally.
+    """
+    vault_client._slack_secrets_cache = {
+        "app_token": "xapp-test-token",
+        "client_id": "test-client-id",
+        "client_secret": "test-client-secret",
+    }
 
 
 @pytest.fixture(autouse=True, scope="session")
