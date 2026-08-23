@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 import os
 import pytz
-from food_recognition.auth import auth_bp, init_oauth, login_required, unauthenticated_response
+from food_recognition.auth import auth_bp, current_user, init_oauth, login_required, unauthenticated_response
 from food_recognition.food_classification import classify_image
 from food_recognition.utils import app_logger
 from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register, delete_food_register, sync_schema, get_meal_schedule, update_meal_schedule, get_meal_types, utcnow, get_food_types, upsert_food_characteristics, get_meal_default_items, add_meal_default_item, update_meal_default_item, delete_meal_default_item, get_chat_link, get_pending_chat_link_request, create_chat_link_code, unlink_chat, get_slack_installation
@@ -34,7 +34,7 @@ additionnal_static: Blueprint = Blueprint('additional_static', __name__, static_
 
 @additionnal_static.before_request
 def _require_login_for_photos():
-    if 'user' not in session:
+    if current_user() is None:
         return unauthenticated_response()
 
 
@@ -80,10 +80,11 @@ def inject_chat_link_status():
     dismissible banner) without every route needing to compute it itself.
     Chat linking is opt-in — this only ever prompts, never blocks anything.
     """
-    if 'user' not in session:
+    user = current_user()
+    if user is None:
         return {}
     if not hasattr(g, 'chat_link_missing'):
-        g.chat_link_missing = get_chat_link(session['user']['sub']) is None
+        g.chat_link_missing = get_chat_link(user['sub']) is None
     return {'chat_link_missing': g.chat_link_missing}
 
 
@@ -177,7 +178,7 @@ def upload():
             food_type=food_type['food_type'],
             glycemic_index=food_type['glycemic_index'],
             weight_grams=food_type['weight_grams'],
-            owner_user_id=session['user']['sub'],
+            owner_user_id=current_user()['sub'],
             carbohydrate_percentage=food_type.get('carbohydrate_percentage'),
             carbohydrate_weight_grams=food_type.get('carbohydrate_weight_grams'),
             absorption_type=food_type.get('absorption_type'),
@@ -231,7 +232,7 @@ def update_values():
             food_type=food_type,
             glycemic_index=glycemic_index,
             weight_grams=weight_grams,
-            owner_user_id=session['user']['sub'],
+            owner_user_id=current_user()['sub'],
         )
 
     return redirect(url_for('view_photo', file_uid=uuid_img))
@@ -256,7 +257,7 @@ def api_update_food_register(uuid:str, food_type:str, glycemic_index:int, weight
 
     update_food_register(
         uuid=uuid,
-        owner_user_id=session['user']['sub'],
+        owner_user_id=current_user()['sub'],
         food_type=food_type,
         glycemic_index=glycemic_index,
         weight_grams=weight_grams,
@@ -274,7 +275,7 @@ def api_update_food_register(uuid:str, food_type:str, glycemic_index:int, weight
 def api_delete_food_register(uuid: str):
     validate_uuid(uuid)
     app_logger.info(f"Deleting food_register {uuid} ..")
-    delete_food_register(uuid=uuid, owner_user_id=session['user']['sub'])
+    delete_food_register(uuid=uuid, owner_user_id=current_user()['sub'])
     return {"status": "ok"}
 
 
@@ -283,7 +284,7 @@ def api_delete_food_register(uuid: str):
 def view_photo(file_uid:str):
     created_at: datetime.datetime = None
     validate_uuid(file_uid)
-    food_registers: list[dict] = get_food_registers(owner_user_id=session['user']['sub'], file_uid=file_uid)
+    food_registers: list[dict] = get_food_registers(owner_user_id=current_user()['sub'], file_uid=file_uid)
     food_registers = add_similar_food_info_to_food(food_registers=food_registers)
     if len(food_registers) != 0:
         created_at = food_registers[0]['created_at']
@@ -311,7 +312,7 @@ def meals():
     local_midnight: datetime.datetime = user_tz.localize(datetime.datetime.combine(filter_start_date, datetime.time.min))
     start_datetime_utc: datetime.datetime = local_midnight.astimezone(pytz.utc).replace(tzinfo=None)
 
-    food_registers: list[dict] = get_food_registers(owner_user_id=session['user']['sub'], start_date=start_datetime_utc)
+    food_registers: list[dict] = get_food_registers(owner_user_id=current_user()['sub'], start_date=start_datetime_utc)
     return render_template('meals.html', food_registers=food_registers, start_date=filter_start_date)
 
 
@@ -319,7 +320,7 @@ def meals():
 @login_required
 def meal_schedule():
     user_tz: datetime.tzinfo = get_request_timezone()
-    meal_schedule_rows: list[dict] = get_meal_schedule(owner_user_id=session['user']['sub'])
+    meal_schedule_rows: list[dict] = get_meal_schedule(owner_user_id=current_user()['sub'])
     for row in meal_schedule_rows:
         row['start_time'] = _utc_time_to_local(row['start_time'], user_tz)
         row['end_time'] = _utc_time_to_local(row['end_time'], user_tz)
@@ -339,7 +340,7 @@ def api_update_meal_schedule(uuid: str):
     start_time = _local_time_to_utc(local_start_time, user_tz)
     end_time = _local_time_to_utc(local_end_time, user_tz)
 
-    update_meal_schedule(uuid=uuid, owner_user_id=session['user']['sub'], start_time=start_time, end_time=end_time)
+    update_meal_schedule(uuid=uuid, owner_user_id=current_user()['sub'], start_time=start_time, end_time=end_time)
     return {"status": "ok"}
 
 
@@ -389,7 +390,7 @@ _DAY_OF_WEEK_LABELS: list[str] = ["Monday", "Tuesday", "Wednesday", "Thursday", 
 @app.route('/meal_default_presets', methods=['GET'])
 @login_required
 def meal_default_presets():
-    items: list[dict] = get_meal_default_items(owner_user_id=session['user']['sub'])
+    items: list[dict] = get_meal_default_items(owner_user_id=current_user()['sub'])
     meal_types: list[str] = [m for m in get_meal_types() if m != 'other']
     return render_template(
         'meal_default_presets.html',
@@ -420,7 +421,7 @@ def api_add_meal_default_item():
         item_order=item_order,
         food_type=food_type,
         weight_grams=weight_grams,
-        owner_user_id=session['user']['sub'],
+        owner_user_id=current_user()['sub'],
     )
     return {"status": "ok", "uuid": new_uuid}
 
@@ -439,7 +440,7 @@ def api_update_meal_default_item(uuid: str):
         weight_grams = int(request.form['weight_grams'])
 
     update_meal_default_item(
-        uuid=uuid, owner_user_id=session['user']['sub'], food_type=food_type, weight_grams=weight_grams
+        uuid=uuid, owner_user_id=current_user()['sub'], food_type=food_type, weight_grams=weight_grams
     )
     return {"status": "ok"}
 
@@ -449,7 +450,7 @@ def api_update_meal_default_item(uuid: str):
 def api_delete_meal_default_item(uuid: str):
     validate_uuid(uuid)
     app_logger.info(f"Deleting meal_default_item {uuid} ..")
-    delete_meal_default_item(uuid=uuid, owner_user_id=session['user']['sub'])
+    delete_meal_default_item(uuid=uuid, owner_user_id=current_user()['sub'])
     return {"status": "ok"}
 
 
@@ -461,7 +462,7 @@ def api_delete_meal_default_item(uuid: str):
 @app.route('/settings/chat', methods=['GET'])
 @login_required
 def chat_settings():
-    owner_user_id: str = session['user']['sub']
+    owner_user_id: str = current_user()['sub']
     link: dict | None = get_chat_link(owner_user_id)
     workspace_name: str | None = None
     if link and link['provider_workspace_id']:
@@ -474,14 +475,14 @@ def chat_settings():
 @app.route('/settings/chat/link-code', methods=['POST'])
 @login_required(api=True)
 def api_create_chat_link_code():
-    result: dict = create_chat_link_code(owner_user_id=session['user']['sub'], provider='slack')
+    result: dict = create_chat_link_code(owner_user_id=current_user()['sub'], provider='slack')
     return {"status": "ok", "link_code": result["link_code"], "expires_at": result["expires_at"].isoformat()}
 
 
 @app.route('/settings/chat/unlink', methods=['POST'])
 @login_required(api=True)
 def api_unlink_chat():
-    unlink_chat(owner_user_id=session['user']['sub'])
+    unlink_chat(owner_user_id=current_user()['sub'])
     return {"status": "ok"}
 
 
@@ -510,7 +511,7 @@ def slack_oauth_redirect():
         app_logger.warning("Slack OAuth redirect rejected: missing code or state mismatch")
         return redirect(url_for('chat_settings'))
     redirect_uri: str = url_for('slack_oauth_redirect', _external=True)
-    slack_bot.complete_oauth_install(code=code, redirect_uri=redirect_uri, installed_by=session['user']['sub'])
+    slack_bot.complete_oauth_install(code=code, redirect_uri=redirect_uri, installed_by=current_user()['sub'])
     return redirect(url_for('chat_settings'))
 
 
