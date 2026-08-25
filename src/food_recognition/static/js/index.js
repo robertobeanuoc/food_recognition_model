@@ -19,7 +19,9 @@ function cameraErrorMessage(err) {
         case 'SecurityError':
             return 'Camera access was blocked. Check your browser\'s site settings for ' +
                    'this page (usually the padlock/info icon next to the address bar) and ' +
-                   'allow the camera, then reload the page.';
+                   'allow the camera, then reload. If it isn\'t blocked there, check your ' +
+                   'device/OS settings for whether this browser app is allowed to use the ' +
+                   'camera at all.';
         case 'NotFoundError':
         case 'OverconstrainedError':
             return 'No camera was found on this device.';
