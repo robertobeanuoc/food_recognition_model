@@ -6,7 +6,54 @@ const uploadForm = document.getElementById('upload-form');
 
 let localStream;
 
+// The browser's own getUserMedia() error names, translated into something
+// the user can actually act on - the raw DOMException message (e.g.
+// "The request is not allowed by the user agent or the platform in the
+// current context, possibly because the user denied permission.") is
+// Chrome's stock text for NotAllowedError, which fires for both "you
+// clicked Block" and "this page isn't a secure context" - indistinguishable
+// to the user without this.
+function cameraErrorMessage(err) {
+    switch (err.name) {
+        case 'NotAllowedError':
+        case 'SecurityError':
+            return 'Camera access was blocked. Check your browser\'s site settings for ' +
+                   'this page (usually the padlock/info icon next to the address bar) and ' +
+                   'allow the camera, then reload. If it isn\'t blocked there, check your ' +
+                   'device/OS settings for whether this browser app is allowed to use the ' +
+                   'camera at all.';
+        case 'NotFoundError':
+        case 'OverconstrainedError':
+            return 'No camera was found on this device.';
+        case 'NotReadableError':
+            return 'The camera is already in use by another app or browser tab.';
+        default:
+            return err.message;
+    }
+}
+
+// Shown as plain page text below the camera box (not overlaid on top of
+// the black video viewport, which has its own styling/effects that made an
+// error message written there hard to read).
+function showCameraError(message) {
+    const errorBox = document.getElementById('camera-error');
+    if (errorBox) {
+        errorBox.textContent = 'Camera unavailable: ' + message;
+        errorBox.classList.remove('d-none');
+    }
+}
+
 function startCamera() {
+    // getUserMedia() is unavailable outside a secure context (https:// or
+    // localhost) - browsers reject it with the same generic
+    // "not allowed ... possibly because the user denied permission" error
+    // as an actual permission block, so check this explicitly first and
+    // say so, instead of leaving the user to guess which one it was.
+    if (!window.isSecureContext) {
+        showCameraError('this page needs to be loaded over https:// (not http://) for camera access to work.');
+        return;
+    }
+
     navigator.mediaDevices.getUserMedia({
         video: {
             facingMode: { ideal: "environment" },
@@ -27,12 +74,7 @@ function startCamera() {
             })
             .catch(err2 => {
                 console.error("Error accessing camera:", err2);
-                const viewport = document.querySelector('.camera-viewport');
-                if (viewport) {
-                    viewport.innerHTML =
-                        '<p style="color:white;padding:1.5rem;text-align:center;">' +
-                        'Camera unavailable: ' + err2.message + '</p>';
-                }
+                showCameraError(cameraErrorMessage(err2));
             });
     });
 }
