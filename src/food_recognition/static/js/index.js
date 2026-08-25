@@ -32,6 +32,17 @@ function cameraErrorMessage(err) {
     }
 }
 
+// Shown as plain page text below the camera box (not overlaid on top of
+// the black video viewport, which has its own styling/effects that made an
+// error message written there hard to read).
+function showCameraError(message) {
+    const errorBox = document.getElementById('camera-error');
+    if (errorBox) {
+        errorBox.textContent = 'Camera unavailable: ' + message;
+        errorBox.classList.remove('d-none');
+    }
+}
+
 function startCamera() {
     // getUserMedia() is unavailable outside a secure context (https:// or
     // localhost) - browsers reject it with the same generic
@@ -39,13 +50,7 @@ function startCamera() {
     // as an actual permission block, so check this explicitly first and
     // say so, instead of leaving the user to guess which one it was.
     if (!window.isSecureContext) {
-        const viewport = document.querySelector('.camera-viewport');
-        if (viewport) {
-            viewport.innerHTML =
-                '<p style="color:white;padding:1.5rem;text-align:center;">' +
-                'Camera unavailable: this page needs to be loaded over https:// ' +
-                '(not http://) for camera access to work.</p>';
-        }
+        showCameraError('this page needs to be loaded over https:// (not http://) for camera access to work.');
         return;
     }
 
@@ -69,12 +74,7 @@ function startCamera() {
             })
             .catch(err2 => {
                 console.error("Error accessing camera:", err2);
-                const viewport = document.querySelector('.camera-viewport');
-                if (viewport) {
-                    viewport.innerHTML =
-                        '<p style="color:white;padding:1.5rem;text-align:center;">' +
-                        'Camera unavailable: ' + cameraErrorMessage(err2) + '</p>';
-                }
+                showCameraError(cameraErrorMessage(err2));
             });
     });
 }
