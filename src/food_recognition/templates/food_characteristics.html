@@ -8,17 +8,17 @@
   <!-- ── Page heading ─────────────────────────────────────────── -->
   <div class="page-heading d-flex align-items-start justify-content-between flex-wrap gap-2 mb-4">
     <div>
-      <h1>Food Characteristics</h1>
-      <p class="text-muted">Reference nutritional characteristics per food type. New food types are added here automatically the first time they're identified from a photo.</p>
+      <h1>{{ t('food_types.heading') }}</h1>
+      <p class="text-muted">{{ t('food_types.subheading') }}</p>
     </div>
   </div>
 
   <!-- ── Table card ────────────────────────────────────────────── -->
   <div class="card">
     <div class="card-header d-flex align-items-center justify-content-between">
-      <span class="section-title"><i class="bi bi-clipboard-data me-2 text-muted"></i>Food Types</span>
+      <span class="section-title"><i class="bi bi-clipboard-data me-2 text-muted"></i>{{ t('food_types.title') }}</span>
       <span class="badge rounded-pill" style="background:#f1f5f9; color:#475569; font-size:.75rem; font-weight:600;">
-        {{ food_types|length }} row{{ 's' if food_types|length != 1 }}
+        {{ food_types|length }} {{ t('food_types.row_singular') if food_types|length == 1 else t('food_types.row_plural') }}
       </span>
     </div>
 
@@ -27,13 +27,13 @@
       <table class="table app-table mb-0">
         <thead>
           <tr>
-            <th title="Changed">Chg</th>
-            <th>Food Type</th>
-            <th>Food Type (ES)</th>
-            <th class="text-end">Glycemic Index</th>
-            <th class="text-end">Carbs %</th>
-            <th class="text-center">Absorption</th>
-            <th class="text-center">Actions</th>
+            <th title="{{ t('food_types.col_changed') }}">{{ t('food_types.col_changed') }}</th>
+            <th>{{ t('food_types.col_food_type') }}</th>
+            <th>{{ t('food_types.col_food_type_es') }}</th>
+            <th class="text-end">{{ t('food_types.col_glycemic_index') }}</th>
+            <th class="text-end">{{ t('food_types.col_carbs_pct') }}</th>
+            <th class="text-center">{{ t('food_types.col_absorption') }}</th>
+            <th class="text-center">{{ t('food_types.col_actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -82,8 +82,8 @@
               <select id="absorption_type_{{ loop.index }}" class="form-select"
                       onchange="markUpdated({{ loop.index }})">
                 <option value="" {% if not food['absorption_type'] %}selected{% endif %}>—</option>
-                <option value="slow" {% if food['absorption_type'] == 'slow' %}selected{% endif %}>Slow</option>
-                <option value="fast" {% if food['absorption_type'] == 'fast' %}selected{% endif %}>Fast</option>
+                <option value="slow" {% if food['absorption_type'] == 'slow' %}selected{% endif %}>{{ t('food_types.slow') }}</option>
+                <option value="fast" {% if food['absorption_type'] == 'fast' %}selected{% endif %}>{{ t('food_types.fast') }}</option>
               </select>
             </td>
 
@@ -93,7 +93,7 @@
                 <button id="update_food_characteristics{{ loop.index }}"
                         class="btn btn-save btn-outline-success"
                         onclick="updateFoodCharacteristics({{ loop.index }})"
-                        title="Save changes">
+                        title="{{ t('food_types.save_changes') }}">
                   <i class="bi bi-floppy" style="font-size:.875rem;"></i>
                 </button>
               </div>
@@ -108,7 +108,7 @@
     {% else %}
     <div class="empty-state">
       <i class="bi bi-exclamation-circle"></i>
-      <p>No food types recorded yet.</p>
+      <p>{{ t('food_types.empty') }}</p>
     </div>
     {% endif %}
 

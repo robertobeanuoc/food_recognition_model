@@ -8,11 +8,9 @@
   <!-- ── Page heading ─────────────────────────────────────────── -->
   <div class="page-heading d-flex align-items-start justify-content-between flex-wrap gap-2 mb-4">
     <div>
-      <h1>Meal Defaults</h1>
+      <h1>{{ t('meal_defaults.heading') }}</h1>
       <p class="text-muted">
-        Habitual foods for each meal and day of week, used to pre-fill the Slack reminder form
-        when a meal isn't logged in time. A meal/day can have several ordered presets (1, 2, 3…) —
-        if the first has already been logged this week, the reminder proposes the next one instead.
+        {{ t('meal_defaults.subheading') }}
       </p>
     </div>
   </div>
@@ -20,12 +18,12 @@
   <!-- ── Add item card ─────────────────────────────────────────── -->
   <div class="card mb-4">
     <div class="card-header">
-      <span class="section-title"><i class="bi bi-plus-circle me-2 text-muted"></i>Add food item</span>
+      <span class="section-title"><i class="bi bi-plus-circle me-2 text-muted"></i>{{ t('meal_defaults.add_item') }}</span>
     </div>
     <div class="card-body">
       <div class="row g-2 align-items-end">
         <div class="col-6 col-md-2">
-          <label class="form-label small text-muted">Meal type</label>
+          <label class="form-label small text-muted">{{ t('meal_defaults.meal_type') }}</label>
           <select id="new_meal_type" class="form-select">
             {% for meal_type in meal_types %}
             <option value="{{ meal_type }}">{{ meal_type }}</option>
@@ -33,7 +31,7 @@
           </select>
         </div>
         <div class="col-6 col-md-2">
-          <label class="form-label small text-muted">Day</label>
+          <label class="form-label small text-muted">{{ t('meal_defaults.day') }}</label>
           <select id="new_day_of_week" class="form-select">
             {% for label in day_labels %}
             <option value="{{ loop.index0 }}">{{ label }}</option>
@@ -41,23 +39,23 @@
           </select>
         </div>
         <div class="col-4 col-md-1">
-          <label class="form-label small text-muted">Preset #</label>
+          <label class="form-label small text-muted">{{ t('meal_defaults.preset_number') }}</label>
           <input type="number" id="new_preset_order" class="form-control" value="1" min="1">
         </div>
         <div class="col-4 col-md-1">
-          <label class="form-label small text-muted">Item #</label>
+          <label class="form-label small text-muted">{{ t('meal_defaults.item_number') }}</label>
           <input type="number" id="new_item_order" class="form-control" value="1" min="1">
         </div>
         <div class="col-8 col-md-3">
-          <label class="form-label small text-muted">Food type</label>
-          <input type="text" id="new_food_type" class="form-control" placeholder="e.g. milk">
+          <label class="form-label small text-muted">{{ t('meal_defaults.food_type') }}</label>
+          <input type="text" id="new_food_type" class="form-control" placeholder="{{ t('meal_defaults.food_type_placeholder') }}">
         </div>
         <div class="col-6 col-md-2">
-          <label class="form-label small text-muted">Grams</label>
-          <input type="number" id="new_weight_grams" class="form-control" placeholder="e.g. 200">
+          <label class="form-label small text-muted">{{ t('meal_defaults.grams') }}</label>
+          <input type="number" id="new_weight_grams" class="form-control" placeholder="{{ t('meal_defaults.grams_placeholder') }}">
         </div>
         <div class="col-6 col-md-1 d-grid">
-          <button class="btn btn-save btn-outline-success" onclick="addMealDefaultItem()" title="Add">
+          <button class="btn btn-save btn-outline-success" onclick="addMealDefaultItem()" title="{{ t('meal_defaults.add') }}">
             <i class="bi bi-plus-lg"></i>
           </button>
         </div>
@@ -68,9 +66,9 @@
   <!-- ── Table card ────────────────────────────────────────────── -->
   <div class="card">
     <div class="card-header d-flex align-items-center justify-content-between">
-      <span class="section-title"><i class="bi bi-egg-fried me-2 text-muted"></i>Preset items</span>
+      <span class="section-title"><i class="bi bi-egg-fried me-2 text-muted"></i>{{ t('meal_defaults.preset_items') }}</span>
       <span class="badge rounded-pill" style="background:#f1f5f9; color:#475569; font-size:.75rem; font-weight:600;">
-        {{ items|length }} row{{ 's' if items|length != 1 }}
+        {{ items|length }} {{ t('meal_defaults.row_singular') if items|length == 1 else t('meal_defaults.row_plural') }}
       </span>
     </div>
 
@@ -79,14 +77,14 @@
       <table class="table app-table mb-0">
         <thead>
           <tr>
-            <th title="Changed">Chg</th>
-            <th>Meal type</th>
-            <th>Day</th>
-            <th class="text-end">Preset #</th>
-            <th class="text-end">Item #</th>
-            <th>Food type</th>
-            <th class="text-end">Grams</th>
-            <th class="text-center">Actions</th>
+            <th title="{{ t('meal_defaults.col_changed') }}">{{ t('meal_defaults.col_changed') }}</th>
+            <th>{{ t('meal_defaults.col_meal_type') }}</th>
+            <th>{{ t('meal_defaults.col_day') }}</th>
+            <th class="text-end">{{ t('meal_defaults.col_preset_number') }}</th>
+            <th class="text-end">{{ t('meal_defaults.col_item_number') }}</th>
+            <th>{{ t('meal_defaults.col_food_type') }}</th>
+            <th class="text-end">{{ t('meal_defaults.col_grams') }}</th>
+            <th class="text-center">{{ t('meal_defaults.col_actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -119,12 +117,12 @@
               <div class="d-flex gap-1 justify-content-center">
                 <button class="btn btn-save btn-outline-success"
                         onclick="updateMealDefaultItem({{ loop.index }})"
-                        title="Save changes">
+                        title="{{ t('meal_defaults.save_changes') }}">
                   <i class="bi bi-floppy" style="font-size:.875rem;"></i>
                 </button>
                 <button class="btn btn-save btn-outline-danger"
                         onclick="deleteMealDefaultItem('{{ item['uuid'] }}', this)"
-                        title="Delete">
+                        title="{{ t('meal_defaults.delete') }}">
                   <i class="bi bi-trash" style="font-size:.875rem;"></i>
                 </button>
               </div>
@@ -137,7 +135,7 @@
     {% else %}
     <div class="empty-state">
       <i class="bi bi-exclamation-circle"></i>
-      <p>No default meal items configured yet.</p>
+      <p>{{ t('meal_defaults.empty') }}</p>
     </div>
     {% endif %}
 

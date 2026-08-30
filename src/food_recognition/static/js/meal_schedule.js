@@ -25,6 +25,6 @@ function updateMealSchedule(index) {
     })
     .catch(error => {
         console.error('Error updating meal schedule:', error);
-        alert('Could not save the schedule.');
+        alert(window.__I18N__.save_schedule_failed);
     });
 }

@@ -14,11 +14,13 @@ _DB_SECRET_KEYS = ("host", "port", "user", "password", "name")
 _SLACK_SECRET_KEYS = ("app_token", "client_id", "client_secret")
 _OPENAI_SECRET_KEYS = ("api_key",)
 _OIDC_SECRET_KEYS = ("client_id", "client_secret", "issuer")
+_USER_PREFS_SECRET_KEYS = ("url", "api_key")
 
 _db_secrets_cache: dict | None = None
 _slack_secrets_cache: dict | None = None
 _openai_secrets_cache: dict | None = None
 _oidc_secrets_cache: dict | None = None
+_user_prefs_secrets_cache: dict | None = None
 
 
 def _vault_configured() -> bool:
@@ -130,6 +132,34 @@ def get_oidc_secrets() -> dict:
             )
         _oidc_secrets_cache = env_secrets
     return _oidc_secrets_cache
+
+
+def get_user_prefs_secrets() -> dict:
+    """Connection details for the shared user-prefs service (see
+    user-management-apps/user-prefs): url/api_key. Read from Vault KV v2 at
+    VAULT_USER_PREFS_SECRET_PATH when VAULT_ADDR/VAULT_TOKEN are set. Falls
+    back to the plain USER_PREFS_URL/USER_PREFS_API_KEY env vars otherwise,
+    same pattern as get_db_secrets().
+    """
+    global _user_prefs_secrets_cache
+    if _user_prefs_secrets_cache is not None:
+        return _user_prefs_secrets_cache
+
+    if _vault_configured():
+        path = os.getenv("VAULT_USER_PREFS_SECRET_PATH", "food_recognition/user_prefs")
+        secrets = _read_kv_secret(path)
+        missing = [key for key in _USER_PREFS_SECRET_KEYS if key not in secrets]
+        if missing:
+            raise ValueError(f"Vault secret at '{path}' is missing keys: {missing}")
+        app_logger.info("Loaded user-prefs credentials from Vault path '%s'", path)
+        _user_prefs_secrets_cache = {key: secrets[key] for key in _USER_PREFS_SECRET_KEYS}
+    else:
+        app_logger.info("VAULT_ADDR/VAULT_TOKEN not set — reading user-prefs config from env vars")
+        _user_prefs_secrets_cache = {
+            "url": os.getenv("USER_PREFS_URL"),
+            "api_key": os.getenv("USER_PREFS_API_KEY"),
+        }
+    return _user_prefs_secrets_cache
 
 
 def get_slack_secrets() -> dict:

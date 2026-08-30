@@ -15,14 +15,14 @@
   <div class="page-heading mb-4">
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb mb-1" style="font-size:.8125rem;">
-        <li class="breadcrumb-item"><a href="{{ url_for('index') }}" class="text-decoration-none">Capture</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('meals') }}" class="text-decoration-none">Meals</a></li>
-        <li class="breadcrumb-item active">Analysis</li>
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}" class="text-decoration-none">{{ t('view_photo.breadcrumb_capture') }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('meals') }}" class="text-decoration-none">{{ t('view_photo.breadcrumb_meals') }}</a></li>
+        <li class="breadcrumb-item active">{{ t('view_photo.breadcrumb_analysis') }}</li>
       </ol>
     </nav>
-    <h1>Food Analysis</h1>
+    <h1>{{ t('view_photo.heading') }}</h1>
     {% if created_at %}
-    <p class="text-muted">Captured on {{ created_at|local_dt('%Y-%m-%d %H:%M:%S') }}</p>
+    <p class="text-muted">{{ t('view_photo.captured_on') }} {{ created_at|local_dt('%Y-%m-%d %H:%M:%S') }}</p>
     {% endif %}
   </div>
 
@@ -31,7 +31,7 @@
     <div class="col-12 col-sm-6 col-md-4 col-lg-3">
       <div class="card">
         <div class="card-header">
-          <span class="section-title"><i class="bi bi-image me-2 text-muted"></i>Photo</span>
+          <span class="section-title"><i class="bi bi-image me-2 text-muted"></i>{{ t('view_photo.photo') }}</span>
         </div>
         <div class="p-0 text-center" style="line-height:0;">
           <img src="/photo/{{ uuid_img }}.jpg" alt="Food photo"
@@ -48,10 +48,10 @@
       <div class="card">
 
         <div class="card-header d-flex align-items-center justify-content-between">
-          <span class="section-title"><i class="bi bi-list-check me-2 text-muted"></i>Detected Foods</span>
+          <span class="section-title"><i class="bi bi-list-check me-2 text-muted"></i>{{ t('view_photo.detected_foods') }}</span>
           {% if food_registers %}
           <span class="badge rounded-pill" style="background:#dcfce7; color:#15803d; font-size:.75rem; font-weight:600;">
-            {{ food_registers|length }} item{{ 's' if food_registers|length != 1 }}
+            {{ food_registers|length }} {{ t('view_photo.item_singular') if food_registers|length == 1 else t('view_photo.item_plural') }}
           </span>
           {% endif %}
         </div>
@@ -61,18 +61,18 @@
           <table class="table app-table mb-0" id="table_values">
             <thead>
               <tr>
-                <th title="Changed">Chg</th>
-                <th>Food Type</th>
-                <th>Meal</th>
-                <th class="text-end">GI</th>
-                <th class="text-end">Weight (g)</th>
-                <th class="text-end">Carbs %</th>
-                <th class="text-end">Carbs (g)</th>
-                <th class="text-center">Absorption</th>
-                <th>Similar Food</th>
-                <th class="text-end">Sim. GI</th>
-                <th class="text-center">Verified</th>
-                <th class="text-center">Actions</th>
+                <th title="{{ t('view_photo.col_changed') }}">{{ t('view_photo.col_changed') }}</th>
+                <th>{{ t('view_photo.col_food_type') }}</th>
+                <th>{{ t('view_photo.col_meal') }}</th>
+                <th class="text-end">{{ t('view_photo.col_gi') }}</th>
+                <th class="text-end">{{ t('view_photo.col_weight') }}</th>
+                <th class="text-end">{{ t('view_photo.col_carbs_pct') }}</th>
+                <th class="text-end">{{ t('view_photo.col_carbs_g') }}</th>
+                <th class="text-center">{{ t('view_photo.col_absorption') }}</th>
+                <th>{{ t('view_photo.col_similar_food') }}</th>
+                <th class="text-end">{{ t('view_photo.col_similar_gi') }}</th>
+                <th class="text-center">{{ t('view_photo.col_verified') }}</th>
+                <th class="text-center">{{ t('view_photo.col_actions') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -149,9 +149,9 @@
                   {% set gi = food_register['glycemic_index'] %}
                   {% if gi is not none %}
                     {% if gi < 55 %}
-                      <span class="gi-badge gi-low">Slow</span>
+                      <span class="gi-badge gi-low">{{ t('view_photo.slow') }}</span>
                     {% else %}
-                      <span class="gi-badge gi-high">Fast</span>
+                      <span class="gi-badge gi-high">{{ t('view_photo.fast') }}</span>
                     {% endif %}
                   {% else %}
                     <span class="text-muted">—</span>
@@ -191,13 +191,13 @@
                     <button id="update_food_register{{ loop.index }}"
                             class="btn btn-save btn-outline-success"
                             onclick="updateFoodRegister({{ loop.index }})"
-                            title="Save changes">
+                            title="{{ t('view_photo.save_changes') }}">
                       <i class="bi bi-floppy" style="font-size:.875rem;"></i>
                     </button>
                     <button type="button"
                             class="btn btn-save btn-outline-danger"
                             onclick="deleteFoodRegister('{{ food_register['uuid'] }}', this)"
-                            title="Delete entry">
+                            title="{{ t('view_photo.delete_entry') }}">
                       <i class="bi bi-trash" style="font-size:.875rem;"></i>
                     </button>
                   </div>
@@ -215,7 +215,7 @@
         {% else %}
         <div class="empty-state">
           <i class="bi bi-exclamation-circle"></i>
-          <p>No food items were detected for this photo.</p>
+          <p>{{ t('view_photo.empty') }}</p>
         </div>
         {% endif %}
 

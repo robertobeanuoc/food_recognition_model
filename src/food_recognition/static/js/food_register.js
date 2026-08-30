@@ -58,13 +58,13 @@ function updateFoodRegister(index)
     })
     .catch(error => {
         console.error('Error updating food register:', error);
-        alert('Could not save the changes.');
+        alert(window.__I18N__.save_changes_failed);
     });
 
 }
 
 function deleteFoodRegister(uuid, button) {
-    if (!confirm('Are you sure you want to delete this entry?')) {
+    if (!confirm(window.__I18N__.delete_entry_confirm)) {
         return;
     }
 
@@ -84,6 +84,6 @@ function deleteFoodRegister(uuid, button) {
     })
     .catch(error => {
         console.error('Error deleting food register:', error);
-        alert('Could not delete the entry.');
+        alert(window.__I18N__.delete_entry_failed);
     });
 }

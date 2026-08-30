@@ -12,30 +12,30 @@
   <!-- ── Page heading ─────────────────────────────────────────── -->
   <div class="page-heading d-flex align-items-start justify-content-between flex-wrap gap-2 mb-4">
     <div>
-      <h1>Meal History</h1>
-      <p class="text-muted">All captured food entries from the selected date.</p>
+      <h1>{{ t('meals.heading') }}</h1>
+      <p class="text-muted">{{ t('meals.subheading') }}</p>
     </div>
     <a href="{{ url_for('index') }}" class="btn btn-ns align-self-start">
-      <i class="bi bi-camera me-1"></i>New Capture
+      <i class="bi bi-camera me-1"></i>{{ t('meals.new_capture') }}
     </a>
   </div>
 
   <!-- ── Date filter card ─────────────────────────────────────── -->
   <div class="card mb-4">
     <div class="card-header">
-      <span class="section-title"><i class="bi bi-funnel me-2 text-muted"></i>Filter</span>
+      <span class="section-title"><i class="bi bi-funnel me-2 text-muted"></i>{{ t('meals.filter') }}</span>
     </div>
     <div class="card-body">
       <form action="{{ url_for('meals') }}" method="post" class="row g-3 align-items-end">
         <div class="col-12 col-sm-auto">
-          <label for="datepicker" class="form-label small fw-semibold text-secondary mb-1">Show entries from</label>
+          <label for="datepicker" class="form-label small fw-semibold text-secondary mb-1">{{ t('meals.show_entries_from') }}</label>
           <input type="text" name="datepicker" id="datepicker"
                  value="{{ start_date }}" class="form-control"
-                 placeholder="Select a date…" autocomplete="off">
+                 placeholder="{{ t('meals.select_date') }}" autocomplete="off">
         </div>
         <div class="col-12 col-sm-auto">
           <button type="submit" class="btn btn-ns w-100">
-            <i class="bi bi-search me-1"></i>Apply
+            <i class="bi bi-search me-1"></i>{{ t('meals.apply') }}
           </button>
         </div>
       </form>
@@ -45,9 +45,9 @@
   <!-- ── Results card ─────────────────────────────────────────── -->
   <div class="card">
     <div class="card-header d-flex align-items-center justify-content-between">
-      <span class="section-title"><i class="bi bi-table me-2 text-muted"></i>Entries</span>
+      <span class="section-title"><i class="bi bi-table me-2 text-muted"></i>{{ t('meals.entries') }}</span>
       <span class="badge rounded-pill" style="background:#f1f5f9; color:#475569; font-size:.75rem; font-weight:600;">
-        {{ food_registers|length }} row{{ 's' if food_registers|length != 1 }}
+        {{ food_registers|length }} {{ t('meals.row_singular') if food_registers|length == 1 else t('meals.row_plural') }}
       </span>
     </div>
 
@@ -56,16 +56,16 @@
       <table class="table app-table mb-0">
         <thead>
           <tr>
-            <th>Date</th>
-            <th>Meal</th>
-            <th>Food Type</th>
-            <th class="text-end">Glycemic Index</th>
-            <th class="text-end">Weight (g)</th>
-            <th class="text-end">Carbs %</th>
-            <th class="text-end">Carbs (g)</th>
-            <th class="text-center">Absorption</th>
-            <th>Photo</th>
-            <th class="text-center">Delete</th>
+            <th>{{ t('meals.col_date') }}</th>
+            <th>{{ t('meals.col_meal') }}</th>
+            <th>{{ t('meals.col_food_type') }}</th>
+            <th class="text-end">{{ t('meals.col_glycemic_index') }}</th>
+            <th class="text-end">{{ t('meals.col_weight') }}</th>
+            <th class="text-end">{{ t('meals.col_carbs_pct') }}</th>
+            <th class="text-end">{{ t('meals.col_carbs_g') }}</th>
+            <th class="text-center">{{ t('meals.col_absorption') }}</th>
+            <th>{{ t('meals.col_photo') }}</th>
+            <th class="text-center">{{ t('meals.col_delete') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -119,16 +119,16 @@
               {% set gi = food_register['glycemic_index'] %}
               {% if gi is not none %}
                 {% if gi < 55 %}
-                  <span class="gi-badge gi-low">Slow</span>
+                  <span class="gi-badge gi-low">{{ t('meals.slow') }}</span>
                 {% else %}
-                  <span class="gi-badge gi-high">Fast</span>
+                  <span class="gi-badge gi-high">{{ t('meals.fast') }}</span>
                 {% endif %}
               {% else %}
                 <span class="text-muted">—</span>
               {% endif %}
             </td>
             <td>
-              <a href="/view_photo/{{ food_register['file_uid'] }}" title="View analysis">
+              <a href="/view_photo/{{ food_register['file_uid'] }}" title="{{ t('meals.view_analysis') }}">
                 <img src="/photo/{{ food_register['file_uid'] }}.jpg"
                      alt="{{ food_register['food_type'] }}"
                      class="meal-thumb">
@@ -138,7 +138,7 @@
               <button type="button"
                       class="btn btn-outline-danger btn-sm"
                       onclick="deleteFoodRegister('{{ food_register['uuid'] }}', this)"
-                      title="Delete entry">
+                      title="{{ t('meals.delete_entry') }}">
                 <i class="bi bi-trash" style="font-size:.875rem;"></i>
               </button>
             </td>
@@ -151,7 +151,7 @@
     {% else %}
     <div class="empty-state">
       <i class="bi bi-journal-x"></i>
-      <p>No meals recorded since <strong>{{ start_date }}</strong>.</p>
+      <p>{{ t('meals.empty') }} <strong>{{ start_date }}</strong>.</p>
     </div>
     {% endif %}
 

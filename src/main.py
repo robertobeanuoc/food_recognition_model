@@ -8,9 +8,12 @@ import cv2
 import numpy as np
 import os
 import pytz
-from food_recognition.auth import auth_bp, current_user, init_oauth, login_required, unauthenticated_response
+from food_recognition.auth import account_details_url, auth_bp, change_password_url, current_user, init_oauth, login_required, unauthenticated_response
 from food_recognition.food_classification import classify_image
+from food_recognition.i18n import SUPPORTED_LOCALES, js_translations, translate
+from food_recognition.prefs_client import get_locale, init_prefs_client, set_locale
 from food_recognition.utils import app_logger
+from food_recognition.vault_client import get_user_prefs_secrets
 from food_recognition.db import get_glycemic_index, insert_food_type, update_food_register, update_verfied, get_food_registers, get_glycemic_index, update_food_register, delete_food_register, sync_schema, get_meal_schedule, update_meal_schedule, get_meal_types, utcnow, get_food_types, upsert_food_characteristics, get_meal_default_items, add_meal_default_item, update_meal_default_item, delete_meal_default_item, get_chat_link, get_pending_chat_link_request, create_chat_link_code, unlink_chat, get_slack_installation
 from food_recognition.similar_food import add_similar_food_info_to_food
 from food_recognition import reminder_scheduler, slack_bot
@@ -70,8 +73,47 @@ def _run_slack_bot() -> None:
 # guard against starting the scheduler/Slack bot twice.
 if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
     init_oauth(app)
+    _user_prefs_secrets = get_user_prefs_secrets()
+    init_prefs_client(_user_prefs_secrets['url'], _user_prefs_secrets['api_key'])
     reminder_scheduler.start_scheduler()
     threading.Thread(target=_run_slack_bot, daemon=True, name="slack-bot").start()
+
+
+@app.before_request
+def _resolve_locale():
+    # Set on g (not just returned from the context processor below) so
+    # routes that need it before rendering a template - e.g.
+    # meal_default_presets() building locale-aware day names - can read it
+    # too, since context processors only run at render time.
+    user = current_user()
+    g.locale = get_locale(user['sub']) if user else 'es'
+
+
+@app.context_processor
+def inject_i18n():
+    return {
+        't': lambda key: translate(g.locale, key),
+        'current_locale': g.locale,
+        'js_i18n': js_translations(g.locale),
+    }
+
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    user = current_user()
+    if request.method == 'POST':
+        locale = request.form.get('locale')
+        if locale in SUPPORTED_LOCALES:
+            set_locale(user['sub'], locale)
+        return redirect(url_for('profile'))
+    return render_template(
+        'profile.html',
+        supported_locales=SUPPORTED_LOCALES,
+        current_user_locale=get_locale(user['sub']),
+        account_details_url=account_details_url(),
+        change_password_url=change_password_url(),
+    )
 
 
 @app.context_processor
@@ -384,7 +426,9 @@ def glycemic_index(food_type:str):
 
 # Day names for the /meal_default_presets UI, Monday-first to match
 # db_models.MealDefaultItem.day_of_week (Python date.weekday(), Monday=0).
-_DAY_OF_WEEK_LABELS: list[str] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+_DAY_OF_WEEK_KEYS: list[str] = [
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+]
 
 
 @app.route('/meal_default_presets', methods=['GET'])
@@ -392,11 +436,12 @@ _DAY_OF_WEEK_LABELS: list[str] = ["Monday", "Tuesday", "Wednesday", "Thursday", 
 def meal_default_presets():
     items: list[dict] = get_meal_default_items(owner_user_id=current_user()['sub'])
     meal_types: list[str] = [m for m in get_meal_types() if m != 'other']
+    day_labels: list[str] = [translate(g.locale, f'meal_defaults.day_{key}') for key in _DAY_OF_WEEK_KEYS]
     return render_template(
         'meal_default_presets.html',
         items=items,
         meal_types=meal_types,
-        day_labels=_DAY_OF_WEEK_LABELS,
+        day_labels=day_labels,
     )
 
 

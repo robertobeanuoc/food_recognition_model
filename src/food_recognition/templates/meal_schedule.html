@@ -8,17 +8,17 @@
   <!-- ── Page heading ─────────────────────────────────────────── -->
   <div class="page-heading d-flex align-items-start justify-content-between flex-wrap gap-2 mb-4">
     <div>
-      <h1>Meal Schedule</h1>
-      <p class="text-muted">Habitual time range for each meal, split by weekday and weekend.</p>
+      <h1>{{ t('schedule.heading') }}</h1>
+      <p class="text-muted">{{ t('schedule.subheading') }}</p>
     </div>
   </div>
 
   <!-- ── Schedule card ─────────────────────────────────────────── -->
   <div class="card">
     <div class="card-header d-flex align-items-center justify-content-between">
-      <span class="section-title"><i class="bi bi-clock-history me-2 text-muted"></i>Habitual Ranges</span>
+      <span class="section-title"><i class="bi bi-clock-history me-2 text-muted"></i>{{ t('schedule.habitual_ranges') }}</span>
       <span class="badge rounded-pill" style="background:#f1f5f9; color:#475569; font-size:.75rem; font-weight:600;">
-        {{ meal_schedule_rows|length }} row{{ 's' if meal_schedule_rows|length != 1 }}
+        {{ meal_schedule_rows|length }} {{ t('schedule.row_singular') if meal_schedule_rows|length == 1 else t('schedule.row_plural') }}
       </span>
     </div>
 
@@ -27,12 +27,12 @@
       <table class="table app-table mb-0">
         <thead>
           <tr>
-            <th title="Changed">Chg</th>
-            <th>Meal Type</th>
-            <th class="text-center">Day</th>
-            <th class="text-end">Start Time</th>
-            <th class="text-end">End Time</th>
-            <th class="text-center">Actions</th>
+            <th title="{{ t('schedule.col_changed') }}">{{ t('schedule.col_changed') }}</th>
+            <th>{{ t('schedule.col_meal_type') }}</th>
+            <th class="text-center">{{ t('schedule.col_day') }}</th>
+            <th class="text-end">{{ t('schedule.col_start_time') }}</th>
+            <th class="text-end">{{ t('schedule.col_end_time') }}</th>
+            <th class="text-center">{{ t('schedule.col_actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -54,9 +54,9 @@
             <!-- Weekday / Weekend badge -->
             <td class="text-center">
               {% if row['is_weekend'] %}
-                <span class="gi-badge gi-medium">Weekend</span>
+                <span class="gi-badge gi-medium">{{ t('schedule.weekend') }}</span>
               {% else %}
-                <span class="gi-badge gi-low">Weekday</span>
+                <span class="gi-badge gi-low">{{ t('schedule.weekday') }}</span>
               {% endif %}
             </td>
 
@@ -82,7 +82,7 @@
                 <button id="update_meal_schedule{{ loop.index }}"
                         class="btn btn-save btn-outline-success"
                         onclick="updateMealSchedule({{ loop.index }})"
-                        title="Save changes">
+                        title="{{ t('schedule.save_changes') }}">
                   <i class="bi bi-floppy" style="font-size:.875rem;"></i>
                 </button>
               </div>
@@ -97,7 +97,7 @@
     {% else %}
     <div class="empty-state">
       <i class="bi bi-exclamation-circle"></i>
-      <p>No meal schedule ranges configured.</p>
+      <p>{{ t('schedule.empty') }}</p>
     </div>
     {% endif %}
 

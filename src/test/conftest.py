@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 
 import food_recognition.db as db
+import main as main_module
 from food_recognition import vault_client
 
 # Shared with test_token_auth.py, which mints test JWTs carrying these exact
@@ -37,6 +38,18 @@ def _stub_slack_secrets():
         "client_id": "test-client-id",
         "client_secret": "test-client-secret",
     }
+
+
+@pytest.fixture(autouse=True)
+def _stub_prefs_service(monkeypatch):
+    """Every route render now calls out to the real user-prefs service
+    (main.py's _resolve_locale before_request hook) - stub it so tests
+    don't need that service running, and default to Spanish to match
+    existing assertions. Tests that care about English override this with
+    their own monkeypatch.
+    """
+    monkeypatch.setattr(main_module, "get_locale", lambda sub: "es")
+    monkeypatch.setattr(main_module, "set_locale", lambda sub, locale: None)
 
 
 @pytest.fixture(autouse=True, scope="session")
