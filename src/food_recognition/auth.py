@@ -35,7 +35,13 @@ def init_oauth(app) -> None:
         client_id=secrets['client_id'],
         client_secret=secrets['client_secret'],
         server_metadata_url=f"{_issuer}/.well-known/openid-configuration",
-        client_kwargs={'scope': 'openid profile email'},
+        # "groups" isn't one of the OIDC-standard scopes (openid/profile/email) - it only
+        # surfaces in the token because Authentik has a custom scope mapping for it (see
+        # user-management-apps's authentik/scripts/setup_app_access_control.py). Used to filter
+        # the cross-app switcher menu (webapp-theme's apps.json) by what the user actually has
+        # access to, not to gate login itself - the login/callback flow below works the same
+        # with or without it.
+        client_kwargs={'scope': 'openid profile email groups'},
     )
 
 
@@ -112,6 +118,7 @@ def _verify_bearer_token(token: str) -> dict | None:
         'sub': claims.get('sub'),
         'email': claims.get('email'),
         'name': claims.get('name') or claims.get('preferred_username'),
+        'groups': claims.get('groups') or [],
     }
 
 
@@ -132,7 +139,7 @@ def _authenticate_request() -> dict | None:
 
 
 def current_user() -> dict | None:
-    """The authenticated identity for this request — {'sub', 'email', 'name'},
+    """The authenticated identity for this request — {'sub', 'email', 'name', 'groups'},
     from either a Bearer token or the browser session — or None if
     unauthenticated. Routes should read this instead of session['user']
     directly, so the same code path works for both."""
@@ -160,6 +167,7 @@ def callback():
         'sub': userinfo.get('sub'),
         'email': userinfo.get('email'),
         'name': userinfo.get('name') or userinfo.get('preferred_username'),
+        'groups': userinfo.get('groups') or [],
     }
     # Needed at /logout to also end the Authentik-side SSO session (id_token_hint) —
     # without it, Authentik's own session cookie survives our local logout and the
