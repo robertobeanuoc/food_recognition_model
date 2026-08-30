@@ -5,6 +5,7 @@ const fileInput = document.getElementById('file');
 const uploadForm = document.getElementById('upload-form');
 
 let localStream;
+let videoRunning = true;
 
 // The browser's own getUserMedia() error names, translated into something
 // the user can actually act on - the raw DOMException message (e.g.
@@ -17,16 +18,12 @@ function cameraErrorMessage(err) {
     switch (err.name) {
         case 'NotAllowedError':
         case 'SecurityError':
-            return 'Camera access was blocked. Check your browser\'s site settings for ' +
-                   'this page (usually the padlock/info icon next to the address bar) and ' +
-                   'allow the camera, then reload. If it isn\'t blocked there, check your ' +
-                   'device/OS settings for whether this browser app is allowed to use the ' +
-                   'camera at all.';
+            return window.__I18N__.camera_blocked;
         case 'NotFoundError':
         case 'OverconstrainedError':
-            return 'No camera was found on this device.';
+            return window.__I18N__.camera_not_found;
         case 'NotReadableError':
-            return 'The camera is already in use by another app or browser tab.';
+            return window.__I18N__.camera_in_use;
         default:
             return err.message;
     }
@@ -38,7 +35,7 @@ function cameraErrorMessage(err) {
 function showCameraError(message) {
     const errorBox = document.getElementById('camera-error');
     if (errorBox) {
-        errorBox.textContent = 'Camera unavailable: ' + message;
+        errorBox.textContent = window.__I18N__.camera_unavailable + message;
         errorBox.classList.remove('d-none');
     }
 }
@@ -50,7 +47,7 @@ function startCamera() {
     // as an actual permission block, so check this explicitly first and
     // say so, instead of leaving the user to guess which one it was.
     if (!window.isSecureContext) {
-        showCameraError('this page needs to be loaded over https:// (not http://) for camera access to work.');
+        showCameraError(window.__I18N__.camera_insecure_context);
         return;
     }
 
@@ -82,14 +79,14 @@ function startCamera() {
 startCamera();
 
 snap.addEventListener('click', () => {
-    if (document.getElementById("stop_start_video").innerHTML.trim() !== "Stop Video") {
-        alert("Please start the video before taking a picture.");
+    if (!videoRunning) {
+        alert(window.__I18N__.start_video_first);
     } else {
         const context = canvas.getContext('2d');
         canvas.width  = video.videoWidth;
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-        document.getElementById("snap").innerHTML = "Processing...";
+        document.getElementById("snap").innerHTML = window.__I18N__.processing;
 
         canvas.toBlob(blob => {
             const formData = new FormData();
@@ -117,7 +114,7 @@ snap.addEventListener('click', () => {
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Could not upload the photo.');
+                alert(window.__I18N__.upload_failed);
             });
         }, 'image/jpeg');
 
@@ -133,6 +130,7 @@ function stop_start_video_function() {
     if (localStream) {
         const videoTracks = localStream.getVideoTracks();
         videoTracks[0].enabled = !videoTracks[0].enabled;
-        stop_start_video.innerHTML = videoTracks[0].enabled ? 'Stop Video' : 'Start Video';
+        videoRunning = videoTracks[0].enabled;
+        stop_start_video.innerHTML = videoRunning ? window.__I18N__.stop_video : window.__I18N__.start_video;
     }
 }

@@ -18,7 +18,7 @@ def test_chat_settings_renders_when_not_linked():
     response = client.get("/settings/chat")
 
     assert response.status_code == 200
-    assert b"Not linked yet" in response.data
+    assert "Todavía no vinculado".encode() in response.data
 
 
 def test_chat_settings_renders_when_linked():
@@ -31,7 +31,7 @@ def test_chat_settings_renders_when_linked():
     response = client.get("/settings/chat")
 
     assert response.status_code == 200
-    assert b"Linked" in response.data
+    assert "Vinculado".encode() in response.data
     assert b"Test Workspace" in response.data
 
 
@@ -72,7 +72,7 @@ def test_index_banner_appears_when_not_linked_and_hides_after_linking():
     client = _client_with_session()
 
     response = client.get("/")
-    assert b"Set it up" in response.data
+    assert "Configurarlo".encode() in response.data
 
     upsert_slack_installation(team_id="T1", team_name="Test Workspace", bot_token="xoxb-test", installed_by=_OWNER_A)
     verify_chat_link(
@@ -80,4 +80,4 @@ def test_index_banner_appears_when_not_linked_and_hides_after_linking():
     )
     client = _client_with_session()  # fresh client/session so `g` isn't cached from the previous request
     response = client.get("/")
-    assert b"Set it up" not in response.data
+    assert "Configurarlo".encode() not in response.data

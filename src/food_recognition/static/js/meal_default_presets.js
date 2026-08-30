@@ -25,12 +25,12 @@ function updateMealDefaultItem(index) {
     })
     .catch(error => {
         console.error('Error updating meal default item:', error);
-        alert('Could not save the default food item.');
+        alert(window.__I18N__.save_default_item_failed);
     });
 }
 
 function deleteMealDefaultItem(uuid, button) {
-    if (!confirm('Are you sure you want to delete this default food item?')) {
+    if (!confirm(window.__I18N__.delete_default_item_confirm)) {
         return;
     }
 
@@ -49,7 +49,7 @@ function deleteMealDefaultItem(uuid, button) {
     })
     .catch(error => {
         console.error('Error deleting meal default item:', error);
-        alert('Could not delete the default food item.');
+        alert(window.__I18N__.delete_default_item_failed);
     });
 }
 
@@ -62,7 +62,7 @@ function addMealDefaultItem() {
     var weightGrams = document.getElementById('new_weight_grams').value;
 
     if (!foodType) {
-        alert('Enter the food type.');
+        alert(window.__I18N__.enter_food_type);
         return;
     }
 
@@ -90,6 +90,6 @@ function addMealDefaultItem() {
     })
     .catch(error => {
         console.error('Error adding meal default item:', error);
-        alert('Could not add the default food item.');
+        alert(window.__I18N__.add_default_item_failed);
     });
 }

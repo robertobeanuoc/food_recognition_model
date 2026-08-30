@@ -138,6 +138,30 @@ def _authenticate_request() -> dict | None:
     return g.current_user
 
 
+def _authentik_base_url() -> str:
+    # _issuer is per-application (e.g. ".../application/o/food-recognition/"),
+    # not Authentik's root - the flows below live at the root, so only
+    # scheme+host survive here.
+    parts = urlsplit(_issuer)
+    return f"{parts.scheme}://{parts.netloc}"
+
+
+def account_details_url() -> str:
+    """Authentik's own name/email/username editor. Not reimplemented here -
+    those fields are Authentik's identity record, not something our own
+    per-app DB should hold a second copy of.
+    """
+    return f"{_authentik_base_url()}/if/user/#/settings"
+
+
+def change_password_url() -> str:
+    """Authentik's own password-change flow - verifies the current password,
+    enforces whatever policy is configured, etc. Not something to
+    reimplement in each app's own login-adjacent code.
+    """
+    return f"{_authentik_base_url()}/if/flow/default-password-change/"
+
+
 def current_user() -> dict | None:
     """The authenticated identity for this request — {'sub', 'email', 'name', 'groups'},
     from either a Bearer token or the browser session — or None if

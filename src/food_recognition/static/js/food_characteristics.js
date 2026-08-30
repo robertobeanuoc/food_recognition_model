@@ -29,6 +29,6 @@ function updateFoodCharacteristics(index) {
     })
     .catch(error => {
         console.error('Error updating food characteristics:', error);
-        alert('Could not save the food type.');
+        alert(window.__I18N__.save_food_type_failed);
     });
 }
