@@ -119,7 +119,7 @@
   {% if session.user %}
   <!-- Cross-app navigation switcher (see https://github.com/robertobeanuoc/webapp-theme) -->
   <script>window.__USER_GROUPS__ = {{ session.user.groups | default([]) | tojson }};</script>
-  <script src="https://cdn.jsdelivr.net/gh/robertobeanuoc/webapp-theme@v1.3.0/switcher.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/gh/robertobeanuoc/webapp-theme@v1.4.0/switcher.js" defer></script>
   {% endif %}
   {% block scripts %}{% endblock %}
 
