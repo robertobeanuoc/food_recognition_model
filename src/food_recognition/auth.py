@@ -37,8 +37,8 @@ def init_oauth(app) -> None:
         server_metadata_url=f"{_issuer}/.well-known/openid-configuration",
         # "groups" isn't one of the OIDC-standard scopes (openid/profile/email) - it only
         # surfaces in the token because Authentik has a custom scope mapping for it (see
-        # user-management-apps's authentik/scripts/setup_app_access_control.py). Used to filter
-        # the cross-app switcher menu (webapp-theme's apps.json) by what the user actually has
+        # datacarebot-identity's authentik/scripts/setup_app_access_control.py). Used to filter
+        # the cross-app switcher menu (datacarebot-theme's apps.json) by what the user actually has
         # access to, not to gate login itself - the login/callback flow below works the same
         # with or without it.
         client_kwargs={'scope': 'openid profile email groups'},

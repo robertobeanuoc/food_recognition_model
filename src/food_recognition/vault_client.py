@@ -136,7 +136,7 @@ def get_oidc_secrets() -> dict:
 
 def get_user_prefs_secrets() -> dict:
     """Connection details for the shared user-prefs service (see
-    user-management-apps/user-prefs): url/api_key. Read from Vault KV v2 at
+    datacarebot-identity/user-prefs): url/api_key. Read from Vault KV v2 at
     VAULT_USER_PREFS_SECRET_PATH when VAULT_ADDR/VAULT_TOKEN are set. Falls
     back to the plain USER_PREFS_URL/USER_PREFS_API_KEY env vars otherwise,
     same pattern as get_db_secrets().

@@ -58,7 +58,7 @@ The schema is kept in sync with these models programmatically: `db.sync_schema()
 - Python 3.10+
 - A MySQL 8 instance (not bundled — you point the app at one)
 - An OpenAI API key with access to GPT-4o
-- An Authentik instance with an OAuth2 Provider + Application already created for this app (redirect URI `<app base URL>/auth/callback`) — the app has no login without it. See [`user-management-apps/authentik`](https://github.com/robertobeanuoc/user-management-apps/tree/main/authentik).
+- An Authentik instance with an OAuth2 Provider + Application already created for this app (redirect URI `<app base URL>/auth/callback`) — the app has no login without it. See [`datacarebot-identity/authentik`](https://github.com/robertobeanuoc/datacarebot-identity/tree/main/authentik).
 - Optional but recommended: a HashiCorp Vault instance (KV v2 secrets engine) for storing DB/OpenAI/Slack/OIDC credentials — see [Vault secrets](#vault-secrets). Without it, the app falls back to plain `DB_*`/`OPENAI_API_KEY`/`OIDC_*` env vars and the Slack reminder bot simply stays disabled.
 - Optional: a Slack app (Socket Mode enabled, bot token + app-level token) if you want meal reminders — see [Slack meal reminders](#slack-meal-reminders).
 
@@ -137,7 +137,7 @@ Each secret's JSON keys, exactly as `vault_client.py` reads them:
 | `food_recognition/slack` | `bot_token`, `app_token`, `user_id` | `bot_token` (`xoxb-…`, scope `chat:write`), `app_token` (`xapp-…`, scope `connections:write`, for Socket Mode), `user_id` is the Slack user ID reminders get DM'd to (not a username — find it via the profile's "Copy member ID") |
 | `food_recognition/oidc` | `client_id`, `client_secret`, `issuer` | From the app's OAuth2 Provider + Application in Authentik; `issuer` is that Application's base URL, e.g. `http://<authentik-host>:9000/application/o/food-recognition/` |
 
-Requires a Slack app already created at [api.slack.com](https://api.slack.com/apps) with **Socket Mode** enabled and Interactivity turned on — this repo doesn't create or configure the Slack app itself, only talks to it. Requires an OAuth2 Provider + Application already created in Authentik (redirect URI `<app base URL>/auth/callback`) — see [`user-management-apps/authentik/scripts/create_oauth2_client.py`](https://github.com/robertobeanuoc/user-management-apps/blob/main/authentik/scripts/create_oauth2_client.py).
+Requires a Slack app already created at [api.slack.com](https://api.slack.com/apps) with **Socket Mode** enabled and Interactivity turned on — this repo doesn't create or configure the Slack app itself, only talks to it. Requires an OAuth2 Provider + Application already created in Authentik (redirect URI `<app base URL>/auth/callback`) — see [`datacarebot-identity/authentik/scripts/create_oauth2_client.py`](https://github.com/robertobeanuoc/datacarebot-identity/blob/main/authentik/scripts/create_oauth2_client.py).
 
 ## Slack meal reminders
 

@@ -1,7 +1,7 @@
 """Minimal ES/EN translation helper - no gettext/Babel, since a single
 toolchain doesn't fit uniformly across this household's app stacks
 (Flask+Jinja here, FastAPI+JS and Streamlit elsewhere). Same shape as
-strava_to_db's i18n.py. The preference itself lives in the shared
+datacarebot-activity's i18n.py. The preference itself lives in the shared
 user-prefs service (see prefs_client.py), not here - this module only
 turns a locale string into rendered text.
 """
