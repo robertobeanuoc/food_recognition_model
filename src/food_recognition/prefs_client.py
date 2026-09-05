@@ -1,9 +1,9 @@
 """Client for the shared user-prefs service (see
-user-management-apps/user-prefs) - the single source of truth for each
+datacarebot-identity/user-prefs) - the single source of truth for each
 user's preferred language across every app in this stack. Called
 server-to-server only; never expose these functions to a route that takes
 input straight from the browser without going through login_required. Same
-shape as strava_to_db's prefs_client.py.
+shape as datacarebot-activity's prefs_client.py.
 """
 import time
 
