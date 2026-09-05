@@ -1,4 +1,4 @@
-# Food Recognition Model
+# DataCareBot Food
 
 Lightweight Flask app that classifies food images, stores results in a MySQL database, and augments results using OpenAI.
 

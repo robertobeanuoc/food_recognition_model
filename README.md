@@ -1,4 +1,4 @@
-# Food Recognition Model
+# DataCareBot Food
 
 A Flask web app that recognizes food from a photo. Upload a picture of a meal, and it:
 
